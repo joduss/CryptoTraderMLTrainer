@@ -1,13 +1,6 @@
-import numpy as np
 import torch
 from torch import nn
-from torch.utils.data import DataLoader
-from torchvision import datasets
-from torchvision.transforms import ToTensor, Lambda, Compose
-import matplotlib.pyplot as plt
-from torch.utils.data import TensorDataset
-
-from pytorch.utils.Trainer import Trainer
+from torch.utils.data import DataLoader, TensorDataset
 
 
 X = [1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 3.3, 1.1, 2.4, 5.3, 1, 0, 0.1, 17, 3.345, 8.443, 3.9, 6.554, 2.2, 10]
@@ -24,8 +17,6 @@ dataset_train_len = len(X) - dataset_test_len
 
 dataloader_train = DataLoader(dataset_train, batch_size=3)
 dataloader_test = DataLoader(dataset_test)
-
-
 
 
 #%%

@@ -2,7 +2,7 @@ from collections import deque
 
 import random
 
-from pytorch.project.core.Transition import Transition
+from pytorch_based.core.Transition import Transition
 
 
 class ReplayMemory:

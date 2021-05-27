@@ -1,0 +1,3 @@
+
+class PytorchGlobalConfig:
+    device = "cpu"

@@ -13,8 +13,8 @@ import torch.optim as optim
 import torch.nn.functional as F
 import torchvision.transforms as T
 
-from pytorch.project.core.Transition import Transition
-from pytorch.project.core.replay_memory import ReplayMemory
+from pytorch.trader.core.Transition import Transition
+from pytorch.trader.core.replay_memory import ReplayMemory
 
 
 env = gym.make('CartPole-v0').unwrapped
