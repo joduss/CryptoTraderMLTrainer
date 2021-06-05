@@ -1,5 +1,7 @@
 from torch import nn
 
+from ...core.pytorch_global_config import PytorchGlobalConfig
+
 
 class MarketIndicatorNN(nn.Module):
 
@@ -10,9 +12,9 @@ class MarketIndicatorNN(nn.Module):
             nn.ReLU(),
             nn.Linear(12, 3),
             nn.ReLU()
-
         ).double()
 
+        self.network = self.network.to(device=PytorchGlobalConfig.device)
 
     def forward(self, x):
         logits = self.network(x)

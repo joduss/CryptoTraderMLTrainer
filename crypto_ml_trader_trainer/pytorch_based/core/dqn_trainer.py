@@ -8,10 +8,10 @@ import torch.nn.functional as F
 from torch import nn
 from torch.optim import Optimizer
 
-from pytorch_based.core.Transition import Transition
-from pytorch_based.core.policy import Policy
-from pytorch_based.core.pytorch_global_config import PytorchGlobalConfig
-from pytorch_based.core.replay_memory import ReplayMemory
+from ..core.Transition import Transition
+from ..core.policy import Policy
+from ..core.pytorch_global_config import PytorchGlobalConfig
+from ..core.replay_memory import ReplayMemory
 
 
 @dataclass

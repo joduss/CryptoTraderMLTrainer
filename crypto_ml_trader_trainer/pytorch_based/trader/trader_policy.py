@@ -4,8 +4,8 @@ import random
 import torch
 from torch import nn
 
-from pytorch_based.core.policy import Policy
-from pytorch_based.core.pytorch_global_config import PytorchGlobalConfig
+from ..core.policy import Policy
+from ..core.pytorch_global_config import PytorchGlobalConfig
 
 
 class TraderPolicy(Policy):
