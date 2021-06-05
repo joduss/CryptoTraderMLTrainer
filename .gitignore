@@ -4,6 +4,9 @@
 input
 
 
+# Pycharm files.
+*.idea
+
 
 
 # .gitignore from Github
