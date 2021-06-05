@@ -10,7 +10,7 @@ from torch.optim import Optimizer
 
 from ..core.Transition import Transition
 from ..core.policy import Policy
-from ..core.pytorch_global_config import PytorchGlobalConfig
+from ..core.pytorch_global_config import Device
 from ..core.replay_memory import ReplayMemory
 
 
@@ -58,7 +58,7 @@ class DQNTrainer:
                 # Select and perform an action
                 action = self.policy.decide(state)
                 next_state, reward, done, _ = self.environment.step(action.item())
-                reward = torch.tensor([reward], device=PytorchGlobalConfig.device)
+                reward = torch.tensor([reward], device=Device.device)
 
                 if t % self.render_period == 0:
                     self.environment.render()
@@ -99,7 +99,7 @@ class DQNTrainer:
         # Compute a mask of non-final states and concatenate the batch elements
         # (a final state would've been the one after which simulation ended)
         non_final_mask = torch.tensor(tuple(map(lambda s: s is not None,
-                                                batch.next_state)), device=PytorchGlobalConfig.device, dtype=torch.bool)
+                                                batch.next_state)), device=Device.device, dtype=torch.bool)
         non_final_next_states = torch.cat([s for s in batch.next_state
                                            if s is not None])
         state_batch = torch.cat(batch.state)
@@ -116,7 +116,7 @@ class DQNTrainer:
         # on the "older" target_net; selecting their best reward with max(1)[0].
         # This is merged based on the mask, such that we'll have either the expected
         # state value or 0 in case the state was final.
-        next_state_values = torch.zeros(self.batch_size, device=PytorchGlobalConfig.device).double()
+        next_state_values = torch.zeros(self.batch_size, device=Device.device).double()
         next_state_values[non_final_mask] = self.target_net(non_final_next_states).max(1)[0].detach()
         # Compute the expected Q values
         expected_state_action_values = (next_state_values * self.gamma) + reward_batch

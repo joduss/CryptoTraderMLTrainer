@@ -1,3 +1,3 @@
 
-class PytorchGlobalConfig:
+class Device:
     device = "none"

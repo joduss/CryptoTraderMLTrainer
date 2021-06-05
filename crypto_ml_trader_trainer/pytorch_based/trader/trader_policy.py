@@ -5,7 +5,7 @@ import torch
 from torch import nn
 
 from ..core.policy import Policy
-from ..core.pytorch_global_config import PytorchGlobalConfig
+from ..core.pytorch_global_config import Device
 
 
 class TraderPolicy(Policy):
@@ -36,7 +36,7 @@ class TraderPolicy(Policy):
                 # found, so we pick action with the larger expected reward.
                 return self.policy_net(state).max(1)[1].view(1, 1)
         else:
-            return torch.tensor([[random.randrange(self._N_ACTIONS)]], device=PytorchGlobalConfig.device,
+            return torch.tensor([[random.randrange(self._N_ACTIONS)]], device=Device.device,
                                 dtype=torch.long)
 
 

@@ -6,7 +6,7 @@ import torch.optim
 from stable_baselines3.common.env_checker import check_env
 
 from ..core.dqn_trainer import DQNTrainer, DQNTrainerParameters
-from ..core.pytorch_global_config import PytorchGlobalConfig
+from ..core.pytorch_global_config import Device
 from ..trader.environments.crypto_market_indicators_environment import CryptoMarketIndicatorsEnvironment
 from ..trader.models.MarketIndicatorNN import MarketIndicatorNN
 from ..trader.trader_policy import TraderPolicy
@@ -43,7 +43,7 @@ def run(data_file_path = None):
     # data_val = data.iloc[data_train_size:]
     logging.basicConfig()
 
-    PytorchGlobalConfig.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    Device.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
     env: CryptoMarketIndicatorsEnvironment = CryptoMarketIndicatorsEnvironment(data).unwrapped

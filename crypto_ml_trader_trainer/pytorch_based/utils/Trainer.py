@@ -3,7 +3,7 @@ from torch.nn import Module
 from torch.optim import Optimizer
 from torch.utils.data import DataLoader
 
-from pytorch_based.core.pytorch_global_config import PytorchGlobalConfig
+from pytorch_based.core.pytorch_global_config import Device
 
 
 class Trainer:
@@ -13,7 +13,7 @@ class Trainer:
         self.loss_fn = loss_fn
         self.optimizer = optimizer
         model.to(self.device)
-        self.device = PytorchGlobalConfig.device
+        self.device = Device.device
 
 
     def _train(self, dataloader):

@@ -1,7 +1,7 @@
 import gym
 import torch
 
-from pytorch_based.core.pytorch_global_config import PytorchGlobalConfig
+from ..core.pytorch_global_config import Device
 
 
 class EnvironmentTensorWrapper(gym.Env):
@@ -17,11 +17,11 @@ class EnvironmentTensorWrapper(gym.Env):
     #             info (dict): contains auxiliary diagnostic information (helpful for debugging, and sometimes learning)
     def step(self, action):
         observation, reward, done, info = self.wrapped_env.step(action)
-        observation = torch.from_numpy(observation).to(PytorchGlobalConfig.device)
+        observation = torch.from_numpy(observation).to(Device.device)
         return observation, reward, done, info
 
     def reset(self):
-        return torch.from_numpy(self.wrapped_env.reset()).to(PytorchGlobalConfig.device)
+        return torch.from_numpy(self.wrapped_env.reset()).to(Device.device)
 
     def render(self, mode='human'):
         self.wrapped_env.render(mode)
