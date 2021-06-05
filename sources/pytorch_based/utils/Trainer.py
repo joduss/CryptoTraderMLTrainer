@@ -6,15 +6,17 @@ from torch.nn.modules import loss
 from torch.optim import Optimizer
 from torch.utils.data import DataLoader
 
+from pytorch_based.core.pytorch_global_config import PytorchGlobalConfig
+
 
 class Trainer:
-
-    device = "cpu"
 
     def __init__(self, model: Module, loss_fn, optimizer: Optimizer):
         self.model = model
         self.loss_fn = loss_fn
         self.optimizer = optimizer
+        model.to(self.device)
+        self.device = PytorchGlobalConfig.device
 
 
     def _train(self, dataloader):

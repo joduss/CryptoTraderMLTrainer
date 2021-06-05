@@ -2,16 +2,16 @@ import copy
 from dataclasses import dataclass
 from itertools import count
 
+import gym
 import torch
+import torch.nn.functional as F
 from torch import nn
-from torch.autograd.grad_mode import F
 from torch.optim import Optimizer
 
 from pytorch_based.core.Transition import Transition
 from pytorch_based.core.policy import Policy
 from pytorch_based.core.pytorch_global_config import PytorchGlobalConfig
 from pytorch_based.core.replay_memory import ReplayMemory
-from pytorch_based.trader.gym_envs.crypto_market.envs.crypto_market_indicators_environment import CryptoMarketIndicatorsEnvironment
 
 
 @dataclass
@@ -24,6 +24,8 @@ class DQNTrainerParameters:
 
 class DQNTrainer:
 
+    render_period: int = 10000
+
     @property
     def batch_size(self):
         return self.parameters.batch_size
@@ -34,7 +36,7 @@ class DQNTrainer:
 
     def __init__(self,
                  model: nn.Module,
-                 environment: CryptoMarketIndicatorsEnvironment,
+                 environment: gym.Env,
                  optimizer: Optimizer,
                  parameters: DQNTrainerParameters,
                  policy: Policy):
@@ -58,6 +60,9 @@ class DQNTrainer:
                 next_state, reward, done, _ = self.environment.step(action.item())
                 reward = torch.tensor([reward], device=PytorchGlobalConfig.device)
 
+                if t % self.render_period == 0:
+                    self.environment.render()
+
                 # Observe new state
                 if done:
                     next_state = None
@@ -78,6 +83,8 @@ class DQNTrainer:
             # Update the target network, copying all weights and biases in DQN
             if i_episode % self.parameters.target_update == 0:
                 self.target_net.load_state_dict(self.policy_net.state_dict())
+
+            self.environment.render()
 
 
     def optimize_model(self):
@@ -109,7 +116,7 @@ class DQNTrainer:
         # on the "older" target_net; selecting their best reward with max(1)[0].
         # This is merged based on the mask, such that we'll have either the expected
         # state value or 0 in case the state was final.
-        next_state_values = torch.zeros(self.batch_size, device=PytorchGlobalConfig.device)
+        next_state_values = torch.zeros(self.batch_size, device=PytorchGlobalConfig.device).double()
         next_state_values[non_final_mask] = self.target_net(non_final_next_states).max(1)[0].detach()
         # Compute the expected Q values
         expected_state_action_values = (next_state_values * self.gamma) + reward_batch

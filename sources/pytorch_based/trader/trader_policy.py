@@ -2,6 +2,7 @@ import math
 import random
 
 import torch
+from torch import nn
 
 from pytorch_based.core.policy import Policy
 from pytorch_based.core.pytorch_global_config import PytorchGlobalConfig
@@ -13,7 +14,7 @@ class TraderPolicy(Policy):
     _N_ACTIONS = 3
 
 
-    def __init__(self, eps_start: float, eps_end: float, eps_decay: float, policy_net: nn.Module):
+    def __init__(self, policy_net: nn.Module, eps_start: float = 0.9, eps_end: float = 0.05, eps_decay: float = 200):
         self.eps_start = eps_start
         self.eps_end = eps_end
         self.eps_decay = eps_decay
@@ -29,8 +30,8 @@ class TraderPolicy(Policy):
 
         if sample > eps_threshold:
             with torch.no_grad():
-                # t.max(1) will return l
-                # argest column value of each row.
+                # t.max(1) will return
+                # largest column value of each row.
                 # second column on max result is index of where max element was
                 # found, so we pick action with the larger expected reward.
                 return self.policy_net(state).max(1)[1].view(1, 1)
