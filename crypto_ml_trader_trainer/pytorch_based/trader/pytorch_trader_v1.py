@@ -1,6 +1,6 @@
+import os
 import logging
 
-import gym
 import pandas as pd
 import torch.optim
 from stable_baselines3.common.env_checker import check_env
@@ -11,11 +11,10 @@ from ..trader.environments.crypto_market_indicators_environment import CryptoMar
 from ..trader.models.MarketIndicatorNN import MarketIndicatorNN
 from ..trader.trader_policy import TraderPolicy
 from ..utils.environment_tensor_wrapper import EnvironmentTensorWrapper
-from ...utilities.DateUtility import dateparse
-# import crypto_market_envs.crypto_market.envs
-import os.path
+from crypto_ml_trader_trainer.utilities.DateUtility import dateparse
 
 def run(data_file_path = None):
+    print("run")
 
     # delete if it's registered
     env_name = 'crypto-market-indicators-v1'
@@ -26,8 +25,7 @@ def run(data_file_path = None):
         data_file_path = "./input/trades_binance_eth-usd-14-05-2021_1min_subset.csv"
 
     if os.path.isfile(data_file_path)  == False:
-        print(f"Path {data_file_path} doesn't exist.")
-        return
+        raise Exception(f"Path {data_file_path} doesn't exist.")
 
 
     train_ratio = 0.7
@@ -72,9 +70,11 @@ def run(data_file_path = None):
                              optimizer=optimizer,
                              policy=policy)
     print("Start training")
-    dqn_trainer.train(5)
+    dqn_trainer.train(20)
 
 
     print("DONE")
 
-run()
+
+if __name__ == "__main__":
+    run()

@@ -12,10 +12,10 @@ from tf_agents.trajectories import trajectory
 from tf_agents.utils import common
 from tf_agents.networks import sequential
 
-from tensorflow_based.trader.market_indicator_tf_environment import MarketIndicatorTfEnvironment
+from crypto_ml_trader_trainer.tensorflow_based.trader.market_indicator_tf_environment import MarketIndicatorTfEnvironment
 
 # Data and env creation
-from utilities.DateUtility import dateparse
+from crypto_ml_trader_trainer.utilities.DateUtility import dateparse
 
 data_file_path = "./input/ohlc_btc-usd_1min_2021.csv"
 train_ratio = 0.7

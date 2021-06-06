@@ -1,6 +1,5 @@
 import pandas as pd
-import pandas_ta
-from utilities.DateUtility import dateparse
+from crypto_ml_trader_trainer.utilities.DateUtility import dateparse
 
 
 

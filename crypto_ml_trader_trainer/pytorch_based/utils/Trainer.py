@@ -1,8 +1,5 @@
-from typing import Callable
-
 import torch
 from torch.nn import Module
-from torch.nn.modules import loss
 from torch.optim import Optimizer
 from torch.utils.data import DataLoader
 

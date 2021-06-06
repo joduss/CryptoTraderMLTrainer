@@ -1,4 +1,4 @@
-from utilities.DateUtility import dateparse
+from crypto_ml_trader_trainer.utilities.DateUtility import dateparse
 import pandas as pd
 import pandas_ta as ta
 
