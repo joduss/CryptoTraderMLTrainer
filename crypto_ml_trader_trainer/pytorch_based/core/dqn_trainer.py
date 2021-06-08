@@ -51,7 +51,6 @@ class DQNTrainer:
     def train(self, num_episodes: int):
         for i_episode in range(num_episodes):
             # Initialize the environment and state
-            self.environment.reset()
             state = self.environment.reset()
 
             for t in count():
