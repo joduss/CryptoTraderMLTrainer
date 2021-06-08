@@ -8,10 +8,11 @@ class MarketIndicatorNN(nn.Module):
     def __init__(self, input_length: int):
         super(MarketIndicatorNN, self).__init__()
         self.network = nn.Sequential(
-            nn.Linear(input_length, 12),
+            nn.Linear(input_length, 64),
             nn.ReLU(),
-            nn.Linear(12, 3),
-            nn.ReLU()
+            nn.Linear(64,32),
+            nn.ReLU(),
+            nn.Linear(32, 3),
         ).double()
 
         self.network = self.network.to(device=Device.device)

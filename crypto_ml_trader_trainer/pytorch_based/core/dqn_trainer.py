@@ -24,7 +24,7 @@ class DQNTrainerParameters:
 
 class DQNTrainer:
 
-    render_period: int = 10000
+    render_period: int = 1000
 
     @property
     def batch_size(self):

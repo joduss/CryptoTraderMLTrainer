@@ -47,9 +47,8 @@ def run(data_file_path = None):
 
 
     env: CryptoMarketIndicatorsEnvironment = CryptoMarketIndicatorsEnvironment(data).unwrapped
-    check_env(env)
+    #check_env(env)
     wrapped_env = EnvironmentTensorWrapper(env)
-    print(wrapped_env.reset())
 
     env.logger.disabled = False
     env.logger.level = logging.DEBUG
@@ -60,7 +59,7 @@ def run(data_file_path = None):
 
     model = MarketIndicatorNN(input_length=wrapped_env.observation_space.shape[1])
     optimizer = torch.optim.RMSprop(model.network.parameters())
-    policy = TraderPolicy(model)
+    policy = TraderPolicy(env, model)
 
 
 
@@ -70,7 +69,7 @@ def run(data_file_path = None):
                              optimizer=optimizer,
                              policy=policy)
     print("Start training")
-    dqn_trainer.train(20)
+    dqn_trainer.train(200)
 
 
     print("DONE")

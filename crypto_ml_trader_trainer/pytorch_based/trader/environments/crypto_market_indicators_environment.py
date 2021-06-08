@@ -10,6 +10,7 @@ import pandas as pd
 import pandas_ta
 from gym import Space, spaces
 
+from .market_plot import MarketPlot
 from .trading_action import Action
 
 
@@ -17,17 +18,24 @@ class CryptoMarketIndicatorsEnvironment(gym.Env):
 
     logger: Logger = logging.getLogger(__name__)
 
+
+
     def __init__(self, data: pd.DataFrame):
         super().__init__()
 
         self.state_gen = MarketEnvironmentStateGenerator(data, logger=self.logger)
 
         self.action_space = spaces.Discrete(3)
-        self.observation_space =  spaces.Box(shape=self.state_gen.next().shape, dtype=np.double, low=-1.0, high=1)
+        self.observation_space =  spaces.Box(shape=self.state_gen.next().shape, dtype=np.double, low=-1.0, high=1.0)
 
         self.setInitialState()
         self.logger.level = logging.INFO
         self.logger.disabled = True
+        self.plot = MarketPlot()
+
+
+    def valid_moves(self) -> [Action]:
+        return self.state_gen.valid_moves()
 
     def setInitialState(self):
         self.state_gen.reset()
@@ -47,6 +55,8 @@ class CryptoMarketIndicatorsEnvironment(gym.Env):
         if self.state_gen.hasNext() == False:
             self._episode_ended = True
 
+        self.plot.add(self.state_gen.time(), self.state_gen.current_price(), Action(action))
+
         reward = self.state_gen.execute_action(Action(action))
 
         if reward == None:
@@ -65,6 +75,7 @@ class CryptoMarketIndicatorsEnvironment(gym.Env):
         return new_state, reward,  False, {}
 
     def reset(self):
+        self.plot.save_reset_plot()
         return self.setInitialState()
 
     def render(self, mode='human'):
@@ -75,6 +86,8 @@ class CryptoMarketIndicatorsEnvironment(gym.Env):
         print(f"Balance: {self.state_gen.balance}")
         print(f"Profits: {self.state_gen.total_profits}")
         print(f"Progress: {self.state_gen.progress() * 100} %")
+
+        self.plot.plot()
 
 
 
@@ -133,6 +146,8 @@ class MarketEnvironmentStateGenerator:
         self.reset()
         self.logger = logger
 
+
+
     def prepareData(self):
         # min = self.data["low"].min()
         # max = self.data["high"].max()
@@ -152,24 +167,24 @@ class MarketEnvironmentStateGenerator:
         # self.data = self.data.join(self.data.ta.macd(length=15))
 
 
-    def normalize(self, column: float, factor: float) -> float:
+    def normalize(self, column: float, center: float, divisor: float) -> float:
         """
          Normalize the data in respect to a given factor.
         :param column:
         :param factor:
         :return:
         """
-        return (column - factor) / factor
-
-
-    def discount(self) -> float:
-        if self.coin_qty == 0:
-            return 0
-
-        sell_cost = self.coin_qty * self.current_price() * (1 - self._fee)
-        profits = sell_cost - self.order_value
-
-        return profits
+        return (column - center) / divisor
+    #
+    #
+    # def discount(self) -> float:
+    #     if self.coin_qty == 0:
+    #         return 0
+    #
+    #     sell_cost = self.coin_qty * self.current_price() * (1 - self._fee)
+    #     profits = sell_cost - self.order_value
+    #
+    #     return profits
 
 
     def next(self):
@@ -184,18 +199,34 @@ class MarketEnvironmentStateGenerator:
         if self._idx in self.market_data_cache:
             market_data = self.market_data_cache[self._idx]
         else:
-            market_data = self.data[["ma-5min", "rsi-14days", "rsi-14h", "ema-12", "ema-26"]].iloc[self._idx].to_numpy()
-            market_data[0] = self.normalize(market_data[0], close)
-            market_data[3] = self.normalize(market_data[3], close)
-            market_data[4] = self.normalize(market_data[4], close)
+            market_data = self.data[["close", "ma-5min", "rsi-14days", "rsi-14h", "ema-12", "ema-26"]].iloc[self._idx].to_numpy()
 
-        wallet_data = np.array(
-            [(self.max_order_count - self.order_count) / self.max_order_count,
-             self.order_price])
+            max_value = max(market_data[0], market_data[1], market_data[4], market_data[5])
+            min_value =  min(market_data[0], market_data[1], market_data[4], market_data[5])
+            max_diff = max(abs(max_value - close), abs(close - min_value))
+
+            market_data[0] = self.normalize(market_data[0], close, max_diff)
+            market_data[1] = self.normalize(market_data[1], close, max_diff)
+            market_data[4] = self.normalize(market_data[4], close, max_diff)
+            market_data[5] = self.normalize(market_data[5], close, max_diff)
+
+
+
+            self.market_data_cache[self._idx] = market_data.tolist()
+
+        wallet_data = [
+            (self.max_order_count - self.order_count) / self.max_order_count,
+            self.order_price / close - 1
+        ]
 
         return np.concatenate((wallet_data, market_data)).reshape((1,len(wallet_data) + len(market_data)))
         # return self.data[["time", "ma-30min","rsi-14days","rsi-14h","rsi-3h","macd","ema-12", "ema-26","bbands","stoch"]].to_numpy()
 
+    def valid_moves(self) -> [Action]:
+        if self.can_sell():
+            return [Action.SELL, Action.HOLD]
+        elif self.can_buy():
+            return [Action.BUY, Action.HOLD]
 
     def hasNext(self) -> bool:
         return self._idx + self.index_jump < self._max_idx
@@ -220,7 +251,10 @@ class MarketEnvironmentStateGenerator:
             return self.sell()
 
         if action == Action.HOLD:
-            return 0
+            if self.order_price != 0:
+                return (self.order_price - self.current_price()) * self.coin_qty
+            else:
+                return 0
 
 
     def can_buy(self) -> float:
@@ -232,6 +266,7 @@ class MarketEnvironmentStateGenerator:
 
     def buy(self) -> float:
         if not self.can_buy():
+            self.logger.warning("Cannot buy")
             return 0
 
         self.coin_qty = (self.order_value / self.current_price()) * (1 - self._fee)
@@ -241,10 +276,13 @@ class MarketEnvironmentStateGenerator:
         self.order_price = self.current_price()
 
         self.total_created_order += 1
+        self.logger.debug(f"{self.time()}: Buy {self.coin_qty} @ {self.current_price()}.")
+
         return 0
 
     def sell(self) -> float:
         if not self.can_sell():
+            self.logger.warning("Cannot sell")
             return 0
 
         sell_cost = self.coin_qty * self.current_price() * (1 - self._fee)
