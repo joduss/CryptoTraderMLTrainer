@@ -61,13 +61,17 @@ def run(data_file_path = None):
     optimizer = torch.optim.RMSprop(model.network.parameters())
     policy = TraderPolicy(env, model)
 
-
-
     dqn_trainer = DQNTrainer(model=model,
                              environment=wrapped_env,
                              parameters=DQNTrainerParameters(),
                              optimizer=optimizer,
                              policy=policy)
+
+    # Fill the buffer with a few random transitions.
+    env.logger.disabled = True
+    dqn_trainer.initialize_replay_buffer(RandomTraderPolicy(env), 20)
+    env.logger.disabled = False
+
     print("Start training")
     dqn_trainer.train(200)
 

@@ -48,6 +48,34 @@ class DQNTrainer:
         self.parameters = parameters
         self.policy = policy
 
+    def initialize_replay_buffer(self, random_policy: Policy, num_episodes: int):
+
+        for i_episode in range(num_episodes):
+            # Initialize the environment and state
+            state = self.environment.reset()
+
+            for t in count():
+                # Select and perform an action
+                action = random_policy.decide(state)
+                next_state, reward, done, _ = self.environment.step(action.item())
+                reward = torch.tensor([reward], device=Device.device)
+
+                # Observe new state
+                if done:
+                    next_state = None
+
+                # Store the transition in memory
+                self.memory.push(state, action, next_state, reward)
+
+                # Move to the next state
+                state = next_state
+
+                if done:
+                    break
+
+            print(f"Filling replay memory... ({i_episode}/{num_episodes})")
+
+
     def train(self, num_episodes: int):
         for i_episode in range(num_episodes):
             # Initialize the environment and state
@@ -84,6 +112,8 @@ class DQNTrainer:
                 self.target_net.load_state_dict(self.policy_net.state_dict())
 
             self.environment.render()
+
+            self.policy.next_episode()
 
 
     def optimize_model(self):

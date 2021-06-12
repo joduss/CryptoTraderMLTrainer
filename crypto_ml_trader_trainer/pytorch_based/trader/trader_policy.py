@@ -12,7 +12,7 @@ from ..core.pytorch_global_config import Device
 
 class TraderPolicy(Policy):
 
-    _steps_done: int = 0
+    _episodes_done: int = 0
     _N_ACTIONS = 3
 
 
@@ -21,15 +21,15 @@ class TraderPolicy(Policy):
         self.eps_end = eps_end
         self.eps_decay = eps_decay
         self.policy_net = policy_net
-        self.env: CryptoMarketIndicatorsEnvironment = env
+        self.env: MarketEnvironment = env
 
+    def next_episode(self):
+        self._episodes_done += 1
 
     def decide(self, state):
         eps_threshold = self.eps_end + (self.eps_start - self.eps_end) * math.exp(
-            -1. * self._steps_done / self.eps_decay)
+            -1. * self._episodes_done / self.eps_decay)
         sample = random.random()
-
-        self._steps_done += 1
 
         if sample > eps_threshold:
             return self.tensor_to_action(state)
