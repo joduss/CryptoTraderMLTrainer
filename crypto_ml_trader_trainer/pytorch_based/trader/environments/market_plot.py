@@ -3,10 +3,9 @@ from typing import List
 
 import pandas as pd
 from matplotlib import pyplot as plt
-import matplotlib.axes._axes as axes
 import matplotlib.figure as figure
 
-from pytorch_based.trader.environments.trading_action import Action
+from shared.environments.trading_action import TradingAction
 
 
 
@@ -28,15 +27,15 @@ class MarketPlot:
         plt.ion()
         self.ax = None
 
-    def add(self, date: float, price: float, action: Action):
+    def add(self, date: float, price: float, action: TradingAction):
         self._dates.append(pd.to_datetime(date, unit='s'))
         self._prices.append(price)
 
-        if (action == Action.BUY):
+        if (action == TradingAction.BUY):
             self._buy_prices.append(price)
             self._buy_dates.append(pd.to_datetime(date, unit='s'))
 
-        elif (action == Action.SELL):
+        elif (action == TradingAction.SELL):
             self._sell_prices.append(price)
             self._sell_dates.append(pd.to_datetime(date, unit='s'))
 

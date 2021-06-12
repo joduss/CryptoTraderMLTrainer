@@ -12,7 +12,9 @@ class MarketIndicatorNN(nn.Module):
             nn.ReLU(),
             nn.Linear(64,32),
             nn.ReLU(),
-            nn.Linear(32, 3),
+            nn.Linear(32, 16),
+            nn.ReLU(),
+            nn.Linear(16, 3),
         ).double()
 
         self.network = self.network.to(device=Device.device)

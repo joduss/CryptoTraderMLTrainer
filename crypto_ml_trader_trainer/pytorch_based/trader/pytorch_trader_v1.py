@@ -3,11 +3,12 @@ import logging
 
 import pandas as pd
 import torch.optim
-from stable_baselines3.common.env_checker import check_env
 
+from pytorch_based.trader.environments.logic.market_tick_indicators_env_logic import MarketTickIndicatorsEnvLogic
+from pytorch_based.trader.environments.market_environment import MarketEnvironment
+from pytorch_based.trader.random_trader_policy import RandomTraderPolicy
 from ..core.dqn_trainer import DQNTrainer, DQNTrainerParameters
 from ..core.pytorch_global_config import Device
-from ..trader.environments.crypto_market_indicators_environment import CryptoMarketIndicatorsEnvironment
 from ..trader.models.MarketIndicatorNN import MarketIndicatorNN
 from ..trader.trader_policy import TraderPolicy
 from ..utils.environment_tensor_wrapper import EnvironmentTensorWrapper
@@ -46,11 +47,10 @@ def run(data_file_path = None):
     Device.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
-    env: CryptoMarketIndicatorsEnvironment = CryptoMarketIndicatorsEnvironment(data).unwrapped
+    env: MarketEnvironment = MarketEnvironment(MarketTickIndicatorsEnvLogic(data)).unwrapped
     #check_env(env)
     wrapped_env = EnvironmentTensorWrapper(env)
 
-    env.logger.disabled = False
     env.logger.level = logging.DEBUG
 
 
@@ -73,7 +73,8 @@ def run(data_file_path = None):
     env.logger.disabled = False
 
     print("Start training")
-    dqn_trainer.train(200)
+
+    dqn_trainer.train(2000)
 
 
     print("DONE")

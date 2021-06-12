@@ -4,8 +4,8 @@ import random
 import torch
 from torch import nn
 
-from .environments.crypto_market_indicators_environment import CryptoMarketIndicatorsEnvironment
-from .environments.trading_action import Action
+from shared.environments.trading_action import TradingAction
+from .environments.market_environment import MarketEnvironment
 from ..core.policy import Policy
 from ..core.pytorch_global_config import Device
 
@@ -16,7 +16,7 @@ class TraderPolicy(Policy):
     _N_ACTIONS = 3
 
 
-    def __init__(self, env: CryptoMarketIndicatorsEnvironment,policy_net: nn.Module, eps_start: float = 0.9, eps_end: float = 0.05, eps_decay: float = 20000):
+    def __init__(self, env: MarketEnvironment, policy_net: nn.Module, eps_start: float = 0.95, eps_end: float = 0.05, eps_decay: float = 200):
         self.eps_start = eps_start
         self.eps_end = eps_end
         self.eps_decay = eps_decay
@@ -50,14 +50,14 @@ class TraderPolicy(Policy):
             # The first action might not be legal. Then we choose the second best action.
             first_choice_action: torch.tensor = self.policy_net(state).max(1)[1]
 
-            if Action(first_choice_action.numpy()[0]) in self.env.valid_moves():
+            if TradingAction(first_choice_action.numpy()[0]) in self.env.valid_moves():
                 return first_choice_action.view(1, 1)
 
             actions_tensor[0][first_choice_action] = 0
             second_choice_action = self.policy_net(state).max(1)[1]
 
             # If the second is not valid, then we give up and just hold.
-            if Action(second_choice_action.numpy()[0]) in self.env.valid_moves():
+            if TradingAction(second_choice_action.numpy()[0]) in self.env.valid_moves():
                 return second_choice_action.view(1, 1)
 
-            return torch.tensor([[Action.HOLD.value]]).to(Device.device).view(1, 1)
+            return torch.tensor([[TradingAction.HOLD.value]]).to(Device.device).view(1, 1)

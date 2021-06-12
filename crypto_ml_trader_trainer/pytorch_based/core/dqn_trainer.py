@@ -18,7 +18,7 @@ from ..core.replay_memory import ReplayMemory
 class DQNTrainerParameters:
     batch_size: int = 32
     gamma: float = 0.999
-    memory_size: int = 10000
+    memory_size: int = 30000
     target_update: float = 10
 
 
@@ -78,6 +78,8 @@ class DQNTrainer:
 
     def train(self, num_episodes: int):
         for i_episode in range(num_episodes):
+            print(f"Starting episode {i_episode}/{num_episodes}")
+
             # Initialize the environment and state
             state = self.environment.reset()
 

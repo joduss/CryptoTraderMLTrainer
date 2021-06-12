@@ -12,6 +12,8 @@ from tf_agents.typing import types
 import pandas as pd
 import pandas_ta as pdt
 
+from shared.environments.trading_action import TradingAction
+
 
 class MarketIndicatorTfEnvironment(PyEnvironment):
 
@@ -61,7 +63,7 @@ class MarketIndicatorTfEnvironment(PyEnvironment):
         if self.state_gen.hasNext() == False:
             self._episode_ended = True
 
-        reward = self.state_gen.action(Action(action.item()))
+        reward = self.state_gen.action(TradingAction(action.item()))
 
         if reward == None:
             return ts.termination(new_state, -10)
@@ -82,12 +84,6 @@ class MarketIndicatorTfEnvironment(PyEnvironment):
     def _reset(self) -> ts.TimeStep:
         self.setInitialState()
         return ts.restart(self._state)
-
-
-class Action(Enum):
-    BUY = 0
-    HOLD = 1
-    SELL = 2
 
 
 
@@ -181,14 +177,14 @@ class MarketEnvironmentStateGenerator:
     def _current_price(self):
         return self.data["close"].iloc[self._idx]
 
-    def action(self, action: Action) -> float:
-        if action == Action.BUY:
+    def action(self, action: TradingAction) -> float:
+        if action == TradingAction.BUY:
             return self.buy()
 
-        if action == Action.SELL:
+        if action == TradingAction.SELL:
             return self.sell()
 
-        if action == Action.HOLD:
+        if action == TradingAction.HOLD:
             return 0
 
 
