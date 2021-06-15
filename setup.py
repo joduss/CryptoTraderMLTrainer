@@ -7,5 +7,5 @@ setup(
    author='Man Foo',
    author_email='foomail@foo.com',
    packages=find_packages(),
-   install_requires=['torch', 'stable_baselines3', 'pandas', 'pandas-ta', 'matplotlib', 'tensorflow'],
+   install_requires=['torch', 'stable_baselines3', 'pandas', 'pandas-ta', 'matplotlib', 'tensorflow', 'gym'],
 )
