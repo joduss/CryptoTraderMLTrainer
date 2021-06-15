@@ -18,7 +18,7 @@ from ..core.replay_memory import ReplayMemory
 class DQNTrainerParameters:
     batch_size: int = 32
     gamma: float = 0.999
-    memory_size: int = 30000
+    memory_size: int = 10000
     target_update: float = 10
 
 
@@ -47,6 +47,7 @@ class DQNTrainer:
         self.optimizer = optimizer
         self.parameters = parameters
         self.policy = policy
+        self.epoch = 0
 
     def initialize_replay_buffer(self, random_policy: Policy, num_episodes: int):
 
@@ -79,6 +80,7 @@ class DQNTrainer:
     def train(self, num_episodes: int):
         for i_episode in range(num_episodes):
             print(f"Starting episode {i_episode}/{num_episodes}")
+            self.epoch = i_episode
 
             # Initialize the environment and state
             state = self.environment.reset()
@@ -90,7 +92,7 @@ class DQNTrainer:
                 reward = torch.tensor([reward], device=Device.device)
 
                 if t % self.render_period == 0:
-                    self.environment.render()
+                    self.environment.render("none")
 
                 # Observe new state
                 if done:
