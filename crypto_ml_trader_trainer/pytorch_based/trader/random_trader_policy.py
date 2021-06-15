@@ -8,6 +8,9 @@ from pytorch_based.trader.environments.market_environment import MarketEnvironme
 
 
 class RandomTraderPolicy(Policy):
+    """
+    Predicts randomly valid actions.
+    """
 
     _steps_done: int = 0
     _N_ACTIONS = 3

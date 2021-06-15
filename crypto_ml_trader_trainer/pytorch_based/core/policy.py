@@ -1,7 +1,9 @@
+import torch
+
 
 class Policy:
 
-    def decide(self, observation):
+    def decide(self, observation: torch.Tensor) -> torch.Tensor:
         raise NotImplementedError()
 
     def next_episode(self):

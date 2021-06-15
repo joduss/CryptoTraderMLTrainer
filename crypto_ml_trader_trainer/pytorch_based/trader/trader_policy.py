@@ -11,6 +11,9 @@ from ..core.pytorch_global_config import Device
 
 
 class TraderPolicy(Policy):
+    """
+    Greedy policy, which only predicts valid actions.
+    """
 
     _episodes_done: int = 0
     _N_ACTIONS = 3
@@ -26,19 +29,19 @@ class TraderPolicy(Policy):
     def next_episode(self):
         self._episodes_done += 1
 
-    def decide(self, state):
+    def decide(self, state: torch.Tensor) -> (torch.Tensor, bool):
         eps_threshold = self.eps_end + (self.eps_start - self.eps_end) * math.exp(
             -1. * self._episodes_done / self.eps_decay)
         sample = random.random()
 
         if sample > eps_threshold:
-            return self.tensor_to_action(state)
+            return self.predict_action(state)
         else:
             action = random.sample(self.env.valid_moves(), 1)[0]
             return torch.tensor([[action.value]],  dtype=torch.long).to(Device.device)
 
 
-    def tensor_to_action(self, state: torch.tensor):
+    def predict_action(self, state: torch.tensor):
         with torch.no_grad():
             # t.max(1) will return
             # largest column value of each row.
