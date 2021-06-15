@@ -1,6 +1,6 @@
 from torch import nn
 
-from ...core.pytorch_global_config import Device
+from pytorch_based.core.pytorch_global_config import Device
 
 
 class MarketIndicatorNN(nn.Module):
@@ -15,6 +15,7 @@ class MarketIndicatorNN(nn.Module):
             nn.Linear(32, 16),
             nn.ReLU(),
             nn.Linear(16, 3),
+            nn.Softmax(dim=1)
         ).double()
 
         self.network = self.network.to(device=Device.device)

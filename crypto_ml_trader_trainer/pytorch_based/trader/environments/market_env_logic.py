@@ -1,3 +1,5 @@
+from typing import Dict, Optional, Tuple
+
 import numpy as np
 from logging import Logger
 from shared.environments.trading_action import TradingAction
@@ -6,12 +8,15 @@ from shared.environments.trading_action import TradingAction
 class MarketEnvLogic:
 
     def __init__(self):
-        self.logger: Logger
+        self.logger: Optional[Logger] = None
 
-    def next(self) -> np.array:
+    def next(self) -> Tuple[np.array, float, bool]:
+        """
+        Returns observation, reward, early_termination
+        """
         raise NotImplementedError()
 
-    def execute_action(self, action: TradingAction) -> float:
+    def execute_action(self, action: TradingAction):
         raise NotImplementedError()
 
     def reset(self):
