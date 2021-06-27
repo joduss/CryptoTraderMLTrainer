@@ -15,7 +15,7 @@ class MarketTickIndicatorsEnvLogic(MarketEnvLogic):
 
     _fee = 0.1 / 100
     _index_jump = 15
-
+    _LEGAL_ACTION_HEAD_START = 100
 
     def __init__(self, data: pd.DataFrame, initial_balance: float = 100):
         super().__init__()
@@ -25,14 +25,17 @@ class MarketTickIndicatorsEnvLogic(MarketEnvLogic):
 
         # Data and feature engineering (not normalized)
         self.original_data: pd.DataFrame = data
-        self.data = MarketTickIndicatorData.prepare_data(data, self._index_jump)
+        self.data: np.ndarray = MarketTickIndicatorData.prepare_data(data, self._index_jump)
 
         self._max_idx = len(self.data)
         self._original_data_idx = 0
         self._data_idx = 0
         self.indicator_count: int = len(self.data[0])
-        self.previous_net_worth = 0
-        self.current_reward = 0
+        self.previous_price = 0
+
+        self.illegal_actions = 0
+        self.legal_actions = self._LEGAL_ACTION_HEAD_START # we give a head start
+        self.allowed_illegal_action_rate = 0.1
 
         self.reset()
 
@@ -40,61 +43,101 @@ class MarketTickIndicatorsEnvLogic(MarketEnvLogic):
     # region Interaction with environment
 
 
-    def next(self) -> Tuple[np.array, float, bool]:
-
-        # TODO: stop loss
-
-        done = False
+    def next(self, action: TradingAction) -> Tuple[np.array, float, bool]:
 
         self._original_data_idx += self._index_jump
         self._data_idx += 1
-        close = self.original_data.iloc[self._original_data_idx]["close"]
 
-        wallet_data = [
-            1 if self.wallet.can_buy() else 0,
-            1 if self.wallet.can_sell() else 0,
-            # self.wallet.balance
-        ]
+        # Special case for the first state
+        if self._data_idx == 1:
+            return self._state(), 0, False
+
+        close = self.original_data.iloc[self._original_data_idx]["close"]
+        previous_close = self.original_data.iloc[self._original_data_idx-self._index_jump]["close"]
+
+        reward = self._execute_action(action, previous_close=previous_close, close=close)
 
         self.wallet.update_coin_price(close)
 
-        if 1 - self.wallet.net_worth / self.wallet.max_worth > 0.25:
+        # Allow to loose max 25% from the max worth
+        done = (self.wallet.net_worth / self.wallet.max_worth > 0.75)
+
+        # if self.allowed_illegal_action_rate_min_actions > self.illegal_actions + self.legal_actions:
+        if (self.illegal_actions / (self.legal_actions + self.illegal_actions + 1)) > self.allowed_illegal_action_rate:
             done = True
+            reward = -1
 
 
-        return np.concatenate((wallet_data, self.data[self._data_idx])).reshape(
-            (1, len(wallet_data) + self.indicator_count)), self.current_reward, done
+        self.logger.debug("reward " + str(reward))
+        return self._state(), reward, done
 
 
-    def execute_action(self, action: TradingAction):
-
+    def _execute_action(self, action: TradingAction, previous_close: float, close: float) -> float:
+        """
+        Execute the action
+        @param action: Action to execute
+        @param previous_close: previous close price
+        @param close: current close price
+        @return: reward
+        """
         if action not in self.valid_moves():
-            return -1
+            self.illegal_actions += 1
+
 
         if action == TradingAction.BUY:
             self._buy()
-            self.current_reward = self.wallet.net_worth - self.previous_net_worth
+            return 0
+            # return self.wallet.net_worth_diff(close, previous_close)
+            # return close / previous_close - 1 # small
 
         if action == TradingAction.SELL:
-            self.current_reward = self._sell()
+            profits = self.current_price() / self.wallet.initial_coin_price - 1
+            self._sell()
+            # return profits
+            return profits
 
         if action == TradingAction.HOLD:
-            if self.wallet.can_sell():
-                self.current_reward = self.wallet.net_worth - self.previous_net_worth
-            else:
-                self.current_reward = 0
+            return 0
 
 
-    def reset(self):
+    def reset(self) -> np.array:
         self._data_idx = 0
         self._original_data_idx = 0
         self.wallet = SingleOrderWallet(self.initial_balance)
+        self.illegal_actions = 0
+        self.legal_actions = self._LEGAL_ACTION_HEAD_START
+        return self.next(action=TradingAction.HOLD)
+
+    # endregion
+
+
+    # region Environment current state data
+
+
+    def _wallet_state(self) -> np.array:
+        return [
+            1 if self.wallet.can_buy() else 0,
+            1 if self.wallet.can_sell() else 0,
+            self.wallet.initial_coin_price / self.current_price() - 1 if self.wallet.can_sell() else 0
+            # self.wallet.balance
+        ]
+
+    def _market_state(self) -> np.array:
+        return self.data[self._data_idx]
+
+    def _state(self) -> np.array:
+        wallet_data = self._wallet_state()
+        market_state = self._market_state()
+
+        return np.concatenate((wallet_data, market_state)).reshape(
+            (1, len(wallet_data) + self.indicator_count))
+
 
 
     # endregion
 
 
-    # region Environment current state
+    # region Environment current state values
 
 
     def has_next(self) -> bool:
