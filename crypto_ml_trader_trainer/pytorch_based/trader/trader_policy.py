@@ -51,7 +51,7 @@ class TraderPolicy(Policy):
             actions_tensor = self.policy_net(state)
 
             # The first action might not be legal. Then we choose the second best action.
-            first_choice_action: torch.tensor = self.policy_net(state).max(1)[1]
+            first_choice_action: torch.tensor = self.policy_net(state).max(1)[1].view(1,1)
 
             if TradingAction(first_choice_action.numpy()[0]) in self.env.valid_moves():
                 return first_choice_action.view(1, 1)
