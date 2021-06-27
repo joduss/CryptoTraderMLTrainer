@@ -1,7 +1,9 @@
-from typing import Dict, Optional, Tuple
+from typing import Optional, Tuple
 
 import numpy as np
 from logging import Logger
+
+from pytorch_based.trader.environments.wallet import Wallet
 from shared.environments.trading_action import TradingAction
 
 
@@ -9,19 +11,19 @@ class MarketEnvLogic:
 
     def __init__(self):
         self.logger: Optional[Logger] = None
+        self.wallet: Optional[Wallet] = None
 
-    def next(self) -> Tuple[np.array, float, bool]:
+    def next(self, action: TradingAction) -> Tuple[np.array, float, bool]:
         """
         Returns observation, reward, early_termination
         """
         raise NotImplementedError()
 
-    def execute_action(self, action: TradingAction):
+    def _state(self) -> np.array:
         raise NotImplementedError()
 
-    def reset(self):
+    def reset(self) -> np.array:
         raise NotImplementedError()
-
 
 
     def has_next(self) -> bool:

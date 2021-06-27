@@ -25,7 +25,7 @@ class MarketEnvironment(gym.Env):
         self.market_logic.logger = self.logger
 
         self.action_space = spaces.Discrete(3)
-        self.observation_space = spaces.Box(shape=self.market_logic.next()[0].shape, dtype=np.double, low=-1.0, high=1.0)
+        self.observation_space = spaces.Box(shape=self.market_logic.reset()[0].shape, dtype=np.double, low=-1.0, high=1.0)
 
         self._set_initial_state()
         self.logger.level = logging.INFO
@@ -35,7 +35,7 @@ class MarketEnvironment(gym.Env):
 
     def _set_initial_state(self) -> np.array:
         self.market_logic.reset()
-        state, _, _ = self.market_logic.next()
+        state, _, _ = self.market_logic.reset()
         self._episode_ended = False
         self.max_net_worth = self.market_logic.net_worth()
         return state
@@ -50,12 +50,10 @@ class MarketEnvironment(gym.Env):
             # a new episode.
             raise Exception("The episode is ended. Reset it before calling step()")
 
-        self.market_logic.execute_action(TradingAction(action))
-        new_state, reward, early_end = self.market_logic.next()
+        new_state, reward, early_end = self.market_logic.next(TradingAction(action))
 
         if not self.market_logic.has_next() or early_end:
             self._episode_ended = True
-
 
         if self.market_plot is not None:
             self.market_plot.add(self.market_logic.current_date(), self.market_logic.current_price(),
@@ -81,7 +79,7 @@ class MarketEnvironment(gym.Env):
         print("-------------")
         print(f"Time: {self.market_logic.current_date()}")
         print(f"Current price: {self.market_logic.current_price()}")
-        print(f"Net worth: {self.market_logic.net_worth()}")
+        print(f"Net worth: {self.market_logic.net_worth()} / Max: {self.market_logic.wallet.max_worth}")
         print(f"Balance: {self.market_logic.wallet.balance}")
         print(f"Profits: {self.market_logic.wallet.profits()}")
         print(f"Progress: {self.market_logic.episode_progress() * 100} %")
