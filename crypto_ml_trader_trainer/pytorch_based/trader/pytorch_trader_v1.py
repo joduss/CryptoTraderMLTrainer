@@ -4,12 +4,14 @@ import logging
 import pandas as pd
 import torch.optim
 
-from pytorch_based.trader.environments.logic.market_tick_indicators_env_logic import MarketTickIndicatorsEnvLogic
+from pytorch_based.trader.environments.current_tick_indicators.market_tick_indicators_env_logic import MarketTickIndicatorsEnvLogic
 from pytorch_based.trader.environments.market_environment import MarketEnvironment
+from pytorch_based.trader.greedy_policy import GreedyPolicy
+from pytorch_based.trader.policies.random_policy import RandomPolicy
 from pytorch_based.trader.random_trader_policy import RandomTraderPolicy
 from ..core.dqn_trainer import DQNTrainer, DQNTrainerParameters
 from ..core.pytorch_global_config import Device
-from ..trader.models.MarketIndicatorNN import MarketIndicatorNN
+from pytorch_based.trader.environments.current_tick_indicators.market_indicator_nn import MarketIndicatorNN
 from ..trader.trader_policy import TraderPolicy
 from ..utils.environment_tensor_wrapper import EnvironmentTensorWrapper
 from crypto_ml_trader_trainer.utilities.DateUtility import dateparse
@@ -54,27 +56,40 @@ def run(data_file_path = None):
     env.logger.level = logging.DEBUG
 
 
+
     # environment_train = CryptoMarketIndicatorsEnvironment(data_train, 100)
     # environment_val = MarketIndicatorTfEnvironment(data_val)
 
     model = MarketIndicatorNN(input_length=wrapped_env.observation_space.shape[1])
-    optimizer = torch.optim.RMSprop(model.network.parameters())
-    policy = TraderPolicy(env, model)
+    optimizer = torch.optim.RMSprop(model.network.parameters(), lr = 0.01)
+    # policy = TraderPolicy(env, model)
+    policy = GreedyPolicy(num_actions=3, policy_net=model, eps_decay=30000, decay_per_episode=False)
+
+    parameters = DQNTrainerParameters()
+    parameters.target_update = 1000
+    parameters.gamma = 0.99
 
     dqn_trainer = DQNTrainer(model=model,
                              environment=wrapped_env,
                              parameters=DQNTrainerParameters(),
                              optimizer=optimizer,
                              policy=policy)
+    dqn_trainer.logger.level = logging.DEBUG
 
     # Fill the buffer with a few random transitions.
     env.logger.disabled = True
-    dqn_trainer.initialize_replay_buffer(RandomTraderPolicy(env), 20)
-    env.logger.disabled = False
+    dqn_trainer.initialize_replay_buffer(RandomPolicy(3), 1000)
+    env.logger.disabled = True
 
     print("Start training")
 
-    dqn_trainer.train(2000)
+    dqn_trainer.train(30000)
+
+    torch.save({
+        'epoch': dqn_trainer.epoch,
+        'model_state_dict': model.state_dict(),
+        'optimizer_state_dict': optimizer.state_dict()
+    }, f"output/{model.__class__.__name__}.pt_model")
 
 
     print("DONE")
