@@ -133,8 +133,12 @@ class DQNTrainer:
         # (a final state would've been the one after which simulation ended)
         non_final_mask = torch.tensor(tuple(map(lambda s: s is not None,
                                                 batch.next_state)), device=Device.device, dtype=torch.bool)
-        non_final_next_states = torch.cat([s for s in batch.next_state
-                                           if s is not None])
+        non_final_next_states = [s for s in batch.next_state if s is not None] # list of tensors with 1 row
+        if len(non_final_next_states) == 0:
+            return
+
+        non_final_next_states = torch.cat(non_final_next_states) # tensor 2d from the list of tensors
+
         state_batch = torch.cat(batch.state)
         action_batch = torch.cat(batch.action)
         reward_batch = torch.cat(batch.reward)
