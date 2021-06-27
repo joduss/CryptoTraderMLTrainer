@@ -1,23 +1,25 @@
+from typing import Optional
+
+from pytorch_based.trader.environments.wallet import Wallet
 
 
-class SingleOrderWallet:
+class SingleOrderWallet(Wallet):
 
     def __init__(self, balance: float):
+        super().__init__()
         self.initial_balance: float = balance
         self.balance: float = balance
         self.coins_balance: float = 0
         self.coin_price: float = 0
         self.initial_coin_price: float = 0
-        self.net_worth: float = balance
-        self.max_worth: float = 0
+        self._update_net_worth(balance)
 
         self.transactions: int = 0
 
     def update_coin_price(self, new_price: float):
         self.coin_price = new_price
+        self._update_net_worth(self.balance + self.coins_value())
         self.net_worth = self.balance + self.coins_value()
-        if self.net_worth > self.max_worth:
-            self.max_worth = self.net_worth
 
     def coins_value(self) -> float:
         return self.coin_price * self.coins_balance
@@ -35,14 +37,11 @@ class SingleOrderWallet:
         self.coins_balance = 0
         self.update_coin_price(price)
         self.transactions += 1
+        self.initial_coin_price = 0
+        self.coin_price = 0
 
         return profits
 
-    def net_worth_diff(self, price_now: float, price_before: float = None) -> float:
-        if price_before is None:
-            price_before = self.initial_coin_price
-
-        return self.coins_balance * (price_now - price_before)
 
     def profits(self):
         return self.balance + self.coins_balance * self.coin_price - self.initial_balance
