@@ -44,8 +44,8 @@ class DQNTrainer:
                  parameters: DQNTrainerParameters,
                  policy: Policy):
         self.memory = ReplayMemory(parameters.memory_size)
-        self.target_net: nn.Module = model
-        self.policy_net: nn.Module = copy.deepcopy(model)
+        self.policy_net: nn.Module = model
+        self.target_net: nn.Module = copy.deepcopy(model)
         self.environment = environment
         self.optimizer = optimizer
         self.parameters = parameters
@@ -164,10 +164,10 @@ class DQNTrainer:
         expected_state_action_values = (next_state_values * self.gamma) + reward_batch
 
         # Compute Huber loss
+        self.optimizer.zero_grad()
         loss = F.smooth_l1_loss(state_action_values, expected_state_action_values.unsqueeze(1))
 
         # Optimize the model
-        self.optimizer.zero_grad()
         loss.backward()
         for param in self.policy_net.parameters():
             param.grad.data.clamp_(-1, 1)

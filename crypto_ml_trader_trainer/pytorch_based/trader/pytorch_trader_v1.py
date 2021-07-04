@@ -60,7 +60,7 @@ def run(data_file_path = None):
     # environment_val = MarketIndicatorTfEnvironment(data_val)
 
     model = MarketIndicatorNN(input_length=wrapped_env.observation_space.shape[1])
-    optimizer = torch.optim.RMSprop(model.network.parameters(), lr = 0.01)
+    optimizer = torch.optim.RMSprop(model.parameters(), lr = 0.01)
     # policy = TraderPolicy(env, model)
     policy = GreedyPolicy(num_actions=3, policy_net=model, eps_decay=30000, decay_per_episode=False)
 
