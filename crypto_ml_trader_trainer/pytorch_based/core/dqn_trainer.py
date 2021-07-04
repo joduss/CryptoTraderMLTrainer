@@ -1,6 +1,8 @@
 import copy
+import logging
 from dataclasses import dataclass
 from itertools import count
+from logging import Logger
 
 import gym
 import torch
@@ -25,6 +27,7 @@ class DQNTrainerParameters:
 class DQNTrainer:
 
     render_period: int = 1000
+    logger: Logger = logging.getLogger(__name__)
 
     @property
     def batch_size(self):
@@ -79,7 +82,7 @@ class DQNTrainer:
 
     def train(self, num_episodes: int):
         for i_episode in range(num_episodes):
-            print(f"Starting episode {i_episode}/{num_episodes}")
+            print(f"\nStarting episode {i_episode}/{num_episodes}")
             self.epoch = i_episode
 
             # Initialize the environment and state
@@ -107,6 +110,8 @@ class DQNTrainer:
                 # Perform one step of the optimization (on the policy network)
                 self.optimize_model()
                 if done:
+                    self.environment.render("none")
+
                     # episode_durations.append(t + 1)
                     # plot_durations()
                     break
@@ -166,4 +171,8 @@ class DQNTrainer:
         loss.backward()
         for param in self.policy_net.parameters():
             param.grad.data.clamp_(-1, 1)
+
+        self.logger.debug([param.grad for param in self.policy_net.parameters()])
+
+
         self.optimizer.step()

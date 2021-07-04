@@ -53,7 +53,6 @@ def run(data_file_path = None):
     #check_env(env)
     wrapped_env = EnvironmentTensorWrapper(env)
 
-    env.logger.level = logging.DEBUG
 
 
 
@@ -74,7 +73,11 @@ def run(data_file_path = None):
                              parameters=DQNTrainerParameters(),
                              optimizer=optimizer,
                              policy=policy)
-    dqn_trainer.logger.level = logging.DEBUG
+
+
+    # Logging levels
+    env.logger.level = logging.DEBUG
+    dqn_trainer.logger.level = logging.INFO
 
     # Fill the buffer with a few random transitions.
     env.logger.disabled = True
