@@ -24,11 +24,9 @@ class MarketTickIndicatorsEnvLogic(MarketEnvLogic):
         self.initial_balance = initial_balance
 
         # Data and feature engineering (not normalized)
-        self.original_data: pd.DataFrame = data
-        self.data: np.ndarray = MarketTickIndicatorData.prepare_data(data, self._index_jump)
+        self.data: MarketTickIndicatorData = MarketTickIndicatorData(data, self._index_jump)
 
         self._max_idx = len(self.data)
-        self._original_data_idx = 0
         self._data_idx = 0
         self.indicator_count: int = len(self.data[0])
         self.previous_price = 0
@@ -45,7 +43,6 @@ class MarketTickIndicatorsEnvLogic(MarketEnvLogic):
 
     def next(self, action: TradingAction) -> Tuple[np.array, float, bool]:
 
-        self._original_data_idx += self._index_jump
         self._data_idx += 1
 
         # Special case for the first state
@@ -86,14 +83,11 @@ class MarketTickIndicatorsEnvLogic(MarketEnvLogic):
 
         if action == TradingAction.BUY:
             self._buy()
-            return 0
-            # return self.wallet.net_worth_diff(close, previous_close)
-            # return close / previous_close - 1 # small
+            return close / previous_close - 1 # small
 
         if action == TradingAction.SELL:
             profits = self.current_price() / self.wallet.initial_coin_price - 1
             self._sell()
-            # return profits
             return profits
 
         if action == TradingAction.HOLD:
@@ -115,12 +109,12 @@ class MarketTickIndicatorsEnvLogic(MarketEnvLogic):
 
 
     def _wallet_state(self) -> np.array:
-        return [
+        return np.array([
             1 if self.wallet.can_buy() else 0,
             1 if self.wallet.can_sell() else 0,
             self.wallet.initial_coin_price / self.current_price() - 1 if self.wallet.can_sell() else 0
             # self.wallet.balance
-        ]
+        ], dtype=float64)
 
     def _market_state(self) -> np.array:
         return self.data[self._data_idx]
@@ -144,10 +138,10 @@ class MarketTickIndicatorsEnvLogic(MarketEnvLogic):
         return self._data_idx < self._max_idx and self.wallet.max_worth * 0.75 < self.wallet.net_worth
 
     def current_price(self):
-        return self.original_data["close"].iloc[self._original_data_idx]
+        return self.data.close_prices[self._data_idx]
 
     def current_date(self):
-        return self.original_data.index[self._data_idx]
+        return self.data.dates[self._data_idx]
 
     def net_worth(self):
         return self.wallet.net_worth
