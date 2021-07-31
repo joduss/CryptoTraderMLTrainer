@@ -18,11 +18,13 @@ class MarketTickIndicatorsEnvLogic(MarketEnvLogic):
     _index_jump = 15
     _LEGAL_ACTION_HEAD_START = 100
 
-    def __init__(self, data: pd.DataFrame, initial_balance: float = 100):
+    def __init__(self, data: pd.DataFrame, initial_balance: float = 100, rules_only: bool = False):
         super().__init__()
 
         self.wallet: SingleOrderWallet = SingleOrderWallet(initial_balance)
         self.initial_balance = initial_balance
+
+        self.rules_only = rules_only
 
         # Data and feature engineering (not normalized)
         self.data: MarketTickIndicatorData = MarketTickIndicatorData(data, self._index_jump)
@@ -82,7 +84,19 @@ class MarketTickIndicatorsEnvLogic(MarketEnvLogic):
         """
         if action not in self.valid_moves():
             self.illegal_actions += 1
+            return -1
+        else:
+            self.legal_actions += 1
 
+        # Only learn rules
+        if self.rules_only:
+            if action == TradingAction.BUY:
+                self._buy()
+            if action == TradingAction.SELL:
+                self._sell()
+            return 1
+
+        # Learn all
 
         if action == TradingAction.BUY:
             self._buy()
