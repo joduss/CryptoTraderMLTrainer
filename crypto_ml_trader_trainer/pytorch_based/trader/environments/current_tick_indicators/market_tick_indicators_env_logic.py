@@ -52,8 +52,8 @@ class MarketTickIndicatorsEnvLogic(MarketEnvLogic):
         if self._data_idx == 1:
             return self._state(), 0, False
 
-        close = self.original_data.iloc[self._original_data_idx]["close"]
-        previous_close = self.original_data.iloc[self._original_data_idx-self._index_jump]["close"]
+        close = self.data.close_prices[self._data_idx]
+        previous_close = self.data.close_prices[self._data_idx-1]
 
         reward = self._execute_action(action, previous_close=previous_close, close=close)
 
