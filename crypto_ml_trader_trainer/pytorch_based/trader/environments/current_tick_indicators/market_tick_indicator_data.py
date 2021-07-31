@@ -8,15 +8,36 @@ import utilities.pandas_extension_scaler
 
 class MarketTickIndicatorData:
 
+    def __init__(self, data_to_process: pd.DataFrame, index_jump: int):
+        # keep data here
+        # allow to get the close price by index form a cache of close price
+        # self.original_data = data_to_process.drop_duplicates()
+        self.original_data = data_to_process[~data_to_process.index.duplicated(keep='first')]
+        self.index_jump = index_jump
+        self.processed_data_dataframe = self._prepare_data(self.original_data, index_jump)
+        self.processed_data = self.processed_data_dataframe.to_numpy()
+
+        self.close_prices = self.original_data["close"].loc[self.processed_data_dataframe.index].to_numpy()
+        self.dates = self.processed_data_dataframe.index.to_numpy()
+
+        # CLOSE IS ALWAYS 0 ?!?!
+
+    def __getitem__(self, key) -> np.ndarray:
+        return self.processed_data[key]
+
+    def __len__(self):
+        return len(self.processed_data)
+
+
     @classmethod
-    def prepare_data(cls, data_to_process: pd.DataFrame, index_jump: int) -> np.array:
+    def _prepare_data(cls, data_to_process: pd.DataFrame, index_jump: int) -> pd.DataFrame:
 
         cached_data_path = f"./cache/MarketTickIndicatorData-{index_jump}.json"
 
         # Loads from cache
         if os.path.isfile(cached_data_path):
             with open(cached_data_path, 'r') as file:
-                return np.array(json.load(file))
+                return pd.read_json(cached_data_path)
 
         # Create data and save it to cache
         data = data_to_process.copy()
@@ -64,7 +85,7 @@ class MarketTickIndicatorData:
             cols_to_normalize.append(col)
 
         indices = range(0, len(data), index_jump)
-        filtered_data = pd.DataFrame(data.iloc[indices])
+        filtered_data: pd.DataFrame = pd.DataFrame(data.iloc[indices])
 
         for idx in range(0, len(indices)):
             time_idx = filtered_data.index[idx]
@@ -98,11 +119,7 @@ class MarketTickIndicatorData:
         filtered_data = filtered_data.drop(columns="trades")
 
         print("Data prepared")
-
-        filtered_data = filtered_data.to_numpy()
-
-        with open(cached_data_path, 'w') as file:
-            file.write(json.dumps(filtered_data.tolist()))
+        filtered_data.to_json(cached_data_path)
 
         return filtered_data
 
