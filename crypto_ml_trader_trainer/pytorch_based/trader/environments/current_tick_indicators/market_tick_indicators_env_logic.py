@@ -4,6 +4,7 @@ from typing import Tuple
 
 import numpy as np
 import pandas as pd
+from numpy import float64
 
 from pytorch_based.trader.environments.current_tick_indicators.market_tick_indicator_data import MarketTickIndicatorData
 from pytorch_based.trader.environments.market_env_logic import MarketEnvLogic
@@ -57,12 +58,14 @@ class MarketTickIndicatorsEnvLogic(MarketEnvLogic):
         self.wallet.update_coin_price(close)
 
         # Allow to loose max 25% from the max worth
-        done = (self.wallet.net_worth / self.wallet.max_worth > 0.75)
+        if self.wallet.net_worth / self.wallet.max_worth < 0.75:
+            done = True
+            reward = min(-1.0, reward)
 
         # if self.allowed_illegal_action_rate_min_actions > self.illegal_actions + self.legal_actions:
         if (self.illegal_actions / (self.legal_actions + self.illegal_actions + 1)) > self.allowed_illegal_action_rate:
             done = True
-            reward = -1
+            reward = min(-1.0, reward)
 
 
         self.logger.debug("reward " + str(reward))
