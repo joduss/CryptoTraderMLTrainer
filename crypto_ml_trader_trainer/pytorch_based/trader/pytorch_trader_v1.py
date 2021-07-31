@@ -4,17 +4,18 @@ import logging
 import pandas as pd
 import torch.optim
 
+from pytorch_based.core.dqn_trainer import DQNTrainer, DQNTrainerParameters
+from pytorch_based.core.pytorch_global_config import Device
 from pytorch_based.trader.environments.current_tick_indicators.market_tick_indicators_env_logic import MarketTickIndicatorsEnvLogic
 from pytorch_based.trader.environments.market_environment import MarketEnvironment
 from pytorch_based.trader.greedy_policy import GreedyPolicy
 from pytorch_based.trader.policies.random_policy import RandomPolicy
 from pytorch_based.trader.random_trader_policy import RandomTraderPolicy
-from ..core.dqn_trainer import DQNTrainer, DQNTrainerParameters
-from ..core.pytorch_global_config import Device
+
 from pytorch_based.trader.environments.current_tick_indicators.market_indicator_nn import MarketIndicatorNN
-from ..trader.trader_policy import TraderPolicy
-from ..utils.environment_tensor_wrapper import EnvironmentTensorWrapper
 from crypto_ml_trader_trainer.utilities.DateUtility import dateparse
+from pytorch_based.utils.environment_tensor_wrapper import EnvironmentTensorWrapper
+
 
 def run(data_file_path = None):
     print("run")
@@ -60,12 +61,14 @@ def run(data_file_path = None):
     # environment_val = MarketIndicatorTfEnvironment(data_val)
 
     model = MarketIndicatorNN(input_length=wrapped_env.observation_space.shape[1])
-    optimizer = torch.optim.RMSprop(model.parameters(), lr = 0.01)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
     # policy = TraderPolicy(env, model)
-    policy = GreedyPolicy(num_actions=3, policy_net=model, eps_decay=30000, decay_per_episode=False)
+    policy = GreedyPolicy(num_actions=3, policy_net=model, eps_decay=500, decay_per_episode=False)
 
     parameters = DQNTrainerParameters()
-    parameters.target_update = 1000
+    parameters.batch_size = 64
+    parameters.target_update = 500
+    parameters.memory_size = 10000
     parameters.gamma = 0.99
 
     dqn_trainer = DQNTrainer(model=model,
@@ -81,7 +84,7 @@ def run(data_file_path = None):
 
     # Fill the buffer with a few random transitions.
     env.logger.disabled = True
-    dqn_trainer.initialize_replay_buffer(RandomPolicy(3), 1000)
+    dqn_trainer.initialize_replay_buffer(RandomPolicy(3), 100)
     env.logger.disabled = True
 
     print("Start training")
