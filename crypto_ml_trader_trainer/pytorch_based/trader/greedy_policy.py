@@ -29,9 +29,9 @@ class GreedyPolicy(Policy):
 
     def decide(self, state: torch.Tensor) -> (torch.Tensor, bool):
 
-        eps_threshold = 0.0
+        self._actions_taken += 1
 
-        if self.eps_decay:
+        if self.decay_per_episode:
             eps_threshold = self.eps_end + (self.eps_start - self.eps_end) * math.exp(
                 -1. * self._episodes_done / self.eps_decay)
         else:
