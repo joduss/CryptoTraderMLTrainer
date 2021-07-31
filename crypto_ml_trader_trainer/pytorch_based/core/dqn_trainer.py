@@ -172,7 +172,4 @@ class DQNTrainer:
         for param in self.policy_net.parameters():
             param.grad.data.clamp_(-1, 1)
 
-        self.logger.debug([param.grad for param in self.policy_net.parameters()])
-
-
         self.optimizer.step()
