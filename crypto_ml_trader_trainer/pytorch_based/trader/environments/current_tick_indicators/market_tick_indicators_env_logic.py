@@ -13,12 +13,15 @@ from shared.environments.trading_action import TradingAction
 
 
 class MarketTickIndicatorsEnvLogic(MarketEnvLogic):
-
     _fee = 0.1 / 100
-    _index_jump = 15
     _LEGAL_ACTION_HEAD_START = 100
 
-    def __init__(self, data: pd.DataFrame, initial_balance: float = 100, rules_only: bool = False):
+    index_jump = 15  # If each row is data for a minute, then index_jump will produce aggregated data over 15 minutes
+
+    def __init__(self, data: pd.DataFrame,
+                 initial_balance: float = 100,
+                 rules_only: bool = False,
+                 cache_dir: str = None):
         super().__init__()
 
         self.wallet: SingleOrderWallet = SingleOrderWallet(initial_balance)
@@ -27,7 +30,10 @@ class MarketTickIndicatorsEnvLogic(MarketEnvLogic):
         self.rules_only = rules_only
 
         # Data and feature engineering (not normalized)
-        self.data: MarketTickIndicatorData = MarketTickIndicatorData(data, self._index_jump)
+        self.data: MarketTickIndicatorData = MarketTickIndicatorData(
+            data,
+            self.index_jump,
+            cache_dir=cache_dir)
 
         self._max_idx = len(self.data)
         self._data_idx = 0
@@ -35,7 +41,7 @@ class MarketTickIndicatorsEnvLogic(MarketEnvLogic):
         self.previous_price = 0
 
         self.illegal_actions = 0
-        self.legal_actions = self._LEGAL_ACTION_HEAD_START # we give a head start
+        self.legal_actions = self._LEGAL_ACTION_HEAD_START  # we give a head start
         self.allowed_illegal_action_rate = 0.1
 
         self.reset()
@@ -53,11 +59,12 @@ class MarketTickIndicatorsEnvLogic(MarketEnvLogic):
             return self._state(), 0, False
 
         close = self.data.close_prices[self._data_idx]
-        previous_close = self.data.close_prices[self._data_idx-1]
+        previous_close = self.data.close_prices[self._data_idx - 1]
 
         reward = self._execute_action(action, previous_close=previous_close, close=close)
 
         self.wallet.update_coin_price(close)
+        done = False
 
         # Allow to loose max 25% from the max worth
         if self.wallet.net_worth / self.wallet.max_worth < 0.75:
@@ -68,7 +75,6 @@ class MarketTickIndicatorsEnvLogic(MarketEnvLogic):
         if (self.illegal_actions / (self.legal_actions + self.illegal_actions + 1)) > self.allowed_illegal_action_rate:
             done = True
             reward = min(-1.0, reward)
-
 
         self.logger.debug("reward " + str(reward))
         return self._state(), reward, done
@@ -100,7 +106,7 @@ class MarketTickIndicatorsEnvLogic(MarketEnvLogic):
 
         if action == TradingAction.BUY:
             self._buy()
-            return close / previous_close - 1 # small
+            return close / previous_close - 1  # small
 
         if action == TradingAction.SELL:
             profits = self.current_price() / self.wallet.initial_coin_price - 1
@@ -119,6 +125,7 @@ class MarketTickIndicatorsEnvLogic(MarketEnvLogic):
         self.legal_actions = self._LEGAL_ACTION_HEAD_START
         return self.next(action=TradingAction.HOLD)
 
+
     # endregion
 
 
@@ -133,8 +140,10 @@ class MarketTickIndicatorsEnvLogic(MarketEnvLogic):
             # self.wallet.balance
         ], dtype=float64)
 
+
     def _market_state(self) -> np.array:
         return self.data[self._data_idx]
+
 
     def _state(self) -> np.array:
         wallet_data = self._wallet_state()
@@ -142,7 +151,6 @@ class MarketTickIndicatorsEnvLogic(MarketEnvLogic):
 
         return np.concatenate((wallet_data, market_state)).reshape(
             (1, len(wallet_data) + self.indicator_count))
-
 
 
     # endregion
@@ -154,14 +162,18 @@ class MarketTickIndicatorsEnvLogic(MarketEnvLogic):
     def has_next(self) -> bool:
         return self._data_idx < self._max_idx and self.wallet.max_worth * 0.75 < self.wallet.net_worth
 
+
     def current_price(self):
         return self.data.close_prices[self._data_idx]
+
 
     def current_date(self):
         return self.data.dates[self._data_idx]
 
+
     def net_worth(self):
         return self.wallet.net_worth
+
 
     def valid_moves(self) -> [TradingAction]:
         if self.wallet.can_sell():
@@ -169,13 +181,15 @@ class MarketTickIndicatorsEnvLogic(MarketEnvLogic):
         elif self.wallet.can_buy():
             return [TradingAction.BUY, TradingAction.HOLD]
 
+
     def episode_progress(self) -> float:
         return self._data_idx / self._max_idx
+
 
     # endregion
 
 
-    #region Logic
+    # region Logic
 
 
     def _buy(self) -> float:

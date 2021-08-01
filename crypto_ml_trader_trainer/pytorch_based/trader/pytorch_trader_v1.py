@@ -17,7 +17,7 @@ from crypto_ml_trader_trainer.utilities.DateUtility import dateparse
 from pytorch_based.utils.environment_tensor_wrapper import EnvironmentTensorWrapper
 
 
-def run(data_file_path = None):
+def run(data_file_path: str, cache_dir: str):
     print("run")
 
     # delete if it's registered
@@ -25,11 +25,10 @@ def run(data_file_path = None):
     # if env_name in gym.envs.registry.env_specs:
         # del gym.envs.registry.env_specs[env_name]
 
-    if data_file_path is None:
-        data_file_path = "./input/trades_binance_eth-usd-14-05-2021_1min_subset.csv"
-
     if os.path.isfile(data_file_path)  == False:
         raise Exception(f"Path {data_file_path} doesn't exist.")
+
+    os.makedirs(cache_dir, exist_ok=True)
 
 
     train_ratio = 0.7
@@ -50,7 +49,7 @@ def run(data_file_path = None):
     Device.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
-    env: MarketEnvironment = MarketEnvironment(MarketTickIndicatorsEnvLogic(data)).unwrapped
+    env: MarketEnvironment = MarketEnvironment(MarketTickIndicatorsEnvLogic(data, cache_dir=cache_dir)).unwrapped
     #check_env(env)
     wrapped_env = EnvironmentTensorWrapper(env)
 
@@ -102,4 +101,4 @@ def run(data_file_path = None):
 
 
 if __name__ == "__main__":
-    run()
+    run("./input/trades_binance_eth-usd-14-05-2021_1min_subset.csv", "./cache/")
