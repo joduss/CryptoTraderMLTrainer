@@ -4,6 +4,8 @@ import numpy as np
 import pandas as pd
 import pandas_ta # required!
 import utilities.pandas_extension_scaler # required!
+from utilities.DateUtility import dateparse
+
 
 class MarketTickIndicatorData:
 
@@ -15,7 +17,7 @@ class MarketTickIndicatorData:
         self.processed_data_dataframe = self._prepare_data(self.original_data, index_jump, cache_dir)
         self.processed_data = self.processed_data_dataframe.to_numpy()
 
-        self.close_prices = self.original_data["close"].loc[self.processed_data_dataframe.index].to_numpy()
+        self.close_prices = self.original_data.loc[self.processed_data_dataframe.index]["close"]
         self.dates = self.processed_data_dataframe.index.to_numpy()
 
 
@@ -27,19 +29,19 @@ class MarketTickIndicatorData:
 
 
     @classmethod
-    def _prepare_data(cls, data_to_process: pd.DataFrame, index_jump: int, cache_directory: str) -> pd.DataFrame:
+    def _prepare_data(cls, data_to_process: pd.DataFrame, index_jump: int, cache_dir: str) -> pd.DataFrame:
 
         # Load data from cache
         cached_data_path = None
-        if cache_directory is not None:
-            if cache_directory.endswith("/"):
-                cache_directory = cache_directory[:-1]
+        if cache_dir is not None:
+            if cache_dir.endswith("/"):
+                cache_dir = cache_dir[:-1]
 
-            cached_data_path = f"{cache_directory}/MarketTickIndicatorData-{index_jump}.json"
+            cached_data_path = f"{cache_dir}/MarketTickIndicatorData-{index_jump}.csv"
 
             if os.path.isfile(cached_data_path):
                 with open(cached_data_path, 'r') as file:
-                    return pd.read_json(cached_data_path)
+                    return pd.read_csv(cached_data_path, index_col=0, parse_dates=True, date_parser=dateparse)
 
         # Create data and save it to cache
         data = data_to_process.copy()
@@ -123,7 +125,9 @@ class MarketTickIndicatorData:
 
         # Cache the data.
         if cached_data_path is not None:
-            filtered_data.to_json(cached_data_path)
+            filtered_data_copy = filtered_data.copy()
+            filtered_data_copy.index = pd.to_datetime(filtered_data_copy.index, unit='s', origin='unix').astype(int) / 10e8
+            filtered_data_copy.to_csv(cached_data_path)
 
         print("Data prepared")
         return filtered_data
