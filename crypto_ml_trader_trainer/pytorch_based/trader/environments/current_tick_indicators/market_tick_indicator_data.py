@@ -1,20 +1,47 @@
 import os
+from typing import List
 
 import numpy as np
 import pandas as pd
-import pandas_ta # required!
-import utilities.pandas_extension_scaler # required!
+# noinspection PyUnresolvedReferences
+import pandas_ta
+# noinspection PyUnresolvedReferences
+import utilities.pandas_extension_scaler
 from utilities.DateUtility import dateparse
 
 
 class MarketTickIndicatorData:
 
-    def __init__(self, data_to_process: pd.DataFrame, index_jump: int, cache_dir: str):
+    def __init__(self, data_to_process: pd.DataFrame, decision_frequency: int, cache_dir: str, history_periods: List[int] = None):
+        """
+        Prepare the data in the following way:
+        Over the whole data, compute the indicators in the last period of max(history_periods),
+        where the indicators are computed for each period.
+        Then, keep only the examples every decision_frequency.
+
+        Ex: decision_frequency = 5, history_periods = [10, 30].
+
+        Let's ignore the decision_frequency for now.
+        We have 2 indicators, but for each indicator, we have data aggregated by 10 and by 30 minutes.
+        If we have 40 minutes of data, we have actually 11 data points.
+
+        Now, let's consider the the decision_frequency which is 5 minutes.
+        We have therefore a data point at start + 30 minute, start + 25 and start + 40.
+
+
+        @param data_to_process: OHLCV data with a 1 minute interval.
+        @param decision_frequency: How frequently in minutes
+        @param cache_dir:
+        @param history_periods: List of periods used to compute market indicators.
+        """
+
+        self.history_periods = history_periods if history_periods is not None else [5, 15, 30, 60, 180, 720, 1440, 3 * 1440, 7 * 1440, 14 * 1440]
+
         # keep data here
         # allow to get the close price by index form a cache of close price
         self.original_data = data_to_process[~data_to_process.index.duplicated(keep='first')]
-        self.index_jump = index_jump
-        self.processed_data_dataframe = self._prepare_data(self.original_data, index_jump, cache_dir)
+        self.index_jump = decision_frequency
+        self.processed_data_dataframe = self._prepare_data(self.original_data, decision_frequency, self.history_periods, cache_dir)
         self.processed_data = self.processed_data_dataframe.to_numpy()
 
         self.close_prices = self.original_data.loc[self.processed_data_dataframe.index]["close"]
@@ -29,7 +56,7 @@ class MarketTickIndicatorData:
 
 
     @classmethod
-    def _prepare_data(cls, data_to_process: pd.DataFrame, index_jump: int, cache_dir: str) -> pd.DataFrame:
+    def _prepare_data(cls, data_to_process: pd.DataFrame, index_jump: int, history_periods: List[int], cache_dir: str) -> pd.DataFrame:
 
         # Load data from cache
         cached_data_path = None
@@ -46,77 +73,48 @@ class MarketTickIndicatorData:
         # Create data and save it to cache
         data = data_to_process.copy()
 
-        # All periods/lengths are in minutes
-        macd_period = 10
+        # Augment data with technical indicators for each period.
+        for period in history_periods:
+            print(f"Computing data for period {period}")
 
-        data["ma-5min"] = data["close"].rolling(window=5).mean()
-        data["ma-30min"] = data["close"].rolling(window=30).mean()
-        data["ma-180min"] = data["close"].rolling(window=180).mean()
-        data["ma-360min"] = data["close"].rolling(window=360).mean()
-        data["ma-1d"] = data["close"].rolling(window=1440).mean()
-        data["ma-1d"] = data["close"].rolling(window=1440).mean()
-        data["ma-3d"] = data["close"].rolling(window=3*1440).mean()
-        data["rsi-14d"] = data.ta.rsi(length=14 * 60 * 24) / 100
-        data["rsi-14h"] = data.ta.rsi(length=14 * 60) / 100
-        data["rsi-3h"] = data.ta.rsi(length=3 * 60) / 100
-        data["ema-12"] = data.ta.ema(length=12 * macd_period)
-        data["ema-26"] = data.ta.ema(length=26 * macd_period)
-        data["rvi"] = data.ta.rvi() / 100
-        data["cci-1day"] = data.ta.cci(length=1440).scaler.normalize_01()
-        data["cci-3days"] = data.ta.cci(length=3*1440).scaler.normalize_01()
-        data["cci-6h"] = data.ta.cci(length=360).scaler.normalize_01()
-        data["willr-1d"] = data.ta.willr(length=24*60*5).scaler.normalize_01()
+            data[f"ma-{period}min"] = data["close"].rolling(window=period).mean()
+            data[f"rsi-{period}min"] = data.ta.rsi(length=period) / 100
+            ema12 = data.ta.ema(length=period)
+            ema26 = data.ta.ema(length=round(26/12*period))
+            data[f"ema-12-x-{period}"] = ema12
+            data[f"ema-26-x-{period}"] = ema26
+            data[f"rvi-x-{period}"] = data.ta.rvi(length=period) / 100
+            data[f"cci-{period}"] = data.ta.cci(length=period).replace([np.inf, -np.inf], np.nan).interpolate().scaler.normalize_01()
+            data[f"willr-{period}"] = data.ta.willr(length=period).scaler.normalize_01()
 
-        data = data.join(data.ta.bbands(length=120))
-        data = data.join(data.ta.stoch(length=60) / 100)
-        data = data.drop(columns="BBB_120_2.0")
+            bbands = data.ta.bbands(length=period)
+            bbands.rename(inplace=True, columns={"BBL_1_2.0": f"BBL_1_2.0-{period}",
+                                                                                 "BBM_1_2.0": f"BBM_1_2.0-{period}",
+                                                                                 "BBU_1_2.0": f"BBU_1_2.0-{period}",
+                                                                                 "BBB_1_2.0": f"BBB_1_2.0-{period}"})
 
-        data["macd"] = (data["ema-26"] - data["ema-12"])
-        for_signal = pd.DataFrame(data["macd"])
-        for_signal.rename(inplace=True, columns={"macd": "close"})
+            stoch = (data.ta.stoch(length=period) / 100)
+            stoch.rename(inplace=True, columns={"STOCHk_14_3_3": f"STOCHk_14_3_3-{period}",
+                                                                                 "STOCHd_14_3_3": f"STOCHd_14_3_3-{period}"})
+            data = data.join([bbands, stoch])
 
-        data["macd-signal"] = for_signal.ta.ema(length=9)
-        data["macd-hist"] = data["macd"] - data["macd-signal"]
+            macd = ema12 - ema26
+            data[f"macd-line-{period}"] = macd
+            for_signal = pd.DataFrame(macd, columns=["close"])
+
+            macd_signal = for_signal.ta.ema(length=9)
+            # data[f"macd-signal-{period}"] = macd_signal
+            data[f"macd-hist-{period}"] = macd - macd_signal
+            data[f"macd-ratio-{period}"] = (macd / macd_signal) - 1
+
+        # The first records of each indicator might be nan.
         data = data.dropna()
 
-        # Determine which column to normalize / scale
-        # scaled_data = []
-        cols_to_normalize_template: [str] = ["ma-", "ema-", "close", "high", "low", "open", "BBU", "BBM", "BBL"]
-        cols_to_normalize: [str] = []
-
-        for col in [col for col in data.columns for col_to_norm in cols_to_normalize_template
-                    if col.startswith(col_to_norm)]:
-            cols_to_normalize.append(col)
-
+        # We keep only data-points depending on decision_frequency.
         indices = range(0, len(data), index_jump)
         filtered_data: pd.DataFrame = pd.DataFrame(data.iloc[indices])
 
-        for idx in range(0, len(indices)):
-            time_idx = filtered_data.index[idx]
-            row = filtered_data.iloc[idx]
-            close = row["close"]
-
-            field_to_normalize = row[cols_to_normalize]
-
-            max_value = field_to_normalize.max()
-            min_value = field_to_normalize.min()
-            max_diff = max(abs(max_value - close), abs(close - min_value))
-
-            for col in cols_to_normalize:
-                filtered_data.at[time_idx, col] = cls._scale(row[col], close, max_diff)
-
-            # scaled_data.append(row.to_list())
-
-            if idx % (100) == 0:
-                print(f"{idx}/{len(filtered_data)}")
-
-
-        # macd features scaling
-        min_value = min(filtered_data["macd"].min(), filtered_data["macd-signal"].min())
-        max_value = max(filtered_data["macd"].max(), filtered_data["macd-signal"].max())
-        filtered_data["macd"] = filtered_data["macd"].scaler.normalize_01(min=min_value, max=max_value)
-        filtered_data["macd-signal"] = filtered_data["macd-signal"].scaler.normalize_01(min=min_value, max=max_value)
-        filtered_data["macd-hist"] = filtered_data["macd-hist"].scaler.normalize_01()
+        MarketTickIndicatorData.normalize(filtered_data, index_jump)
 
         # dropping volume and count
         filtered_data = filtered_data.drop(columns="volume")
@@ -131,6 +129,38 @@ class MarketTickIndicatorData:
 
         print("Data prepared")
         return filtered_data
+
+    @classmethod
+    def normalize(cls, data: pd.DataFrame, index_jump: int):
+        """
+        Normalize the data in-place.
+        """
+
+        # Determine which column to normalize / scale
+        cols_to_normalize_template: [str] = ["ma-", "ema-", "close", "high", "low", "open", "BBU", "BBM", "BBL", "BBB",
+                                             "macd-line"]
+        cols_to_normalize: [str] = []
+
+        for col in [col for col in data.columns for col_to_norm in cols_to_normalize_template
+                    if col.startswith(col_to_norm)]:
+            cols_to_normalize.append(col)
+
+        for idx in range(0, len(data)):
+            time_idx = data.index[idx]
+            row = data.iloc[idx]
+            close = row["close"]
+
+            field_to_normalize = row[cols_to_normalize]
+
+            max_value = field_to_normalize.max()
+            min_value = field_to_normalize.min()
+            max_diff = max(abs(max_value - close), abs(close - min_value))
+
+            for col in cols_to_normalize:
+                data.at[time_idx, col] = cls._scale(row[col], close, max_diff)
+
+            if idx % (100) == 0:
+                print(f"{idx}/{len(data)}")
 
 
     @classmethod

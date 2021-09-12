@@ -10,11 +10,10 @@ from pytorch_based.trader.environments.current_tick_indicators.market_tick_indic
 from pytorch_based.trader.environments.market_environment import MarketEnvironment
 from pytorch_based.trader.greedy_policy import GreedyPolicy
 from pytorch_based.trader.policies.random_policy import RandomPolicy
-from pytorch_based.trader.random_trader_policy import RandomTraderPolicy
 
 from pytorch_based.trader.environments.current_tick_indicators.market_indicator_nn import MarketIndicatorNN
 from crypto_ml_trader_trainer.utilities.DateUtility import dateparse
-from pytorch_based.utils.environment_tensor_wrapper import EnvironmentTensorWrapper
+from pytorch_based.trader.environments.environment_tensor_wrapper import MarketEnvironmentTensorWrapper
 
 
 def run(data_file_path: str, cache_dir: str):
@@ -48,10 +47,10 @@ def run(data_file_path: str, cache_dir: str):
 
     Device.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-
+    MarketTickIndicatorsEnvLogic.index_jump = 15
     env: MarketEnvironment = MarketEnvironment(MarketTickIndicatorsEnvLogic(data, cache_dir=cache_dir)).unwrapped
     #check_env(env)
-    wrapped_env = EnvironmentTensorWrapper(env)
+    wrapped_env = MarketEnvironmentTensorWrapper(env)
 
 
 
@@ -59,16 +58,19 @@ def run(data_file_path: str, cache_dir: str):
     # environment_train = CryptoMarketIndicatorsEnvironment(data_train, 100)
     # environment_val = MarketIndicatorTfEnvironment(data_val)
 
-    model = MarketIndicatorNN(input_length=wrapped_env.observation_space.shape[1])
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+    model = MarketIndicatorNN(input_length=wrapped_env.observation_space["indicators"].shape[0],
+                              wallet_input_length=wrapped_env.observation_space["wallet"].shape[0])
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.0001, weight_decay=0.0001)
     # policy = TraderPolicy(env, model)
-    policy = GreedyPolicy(num_actions=3, policy_net=model, eps_decay=500, decay_per_episode=False)
+    # policy = GreedyPolicy(num_actions=3, policy_net=model, eps_decay=500, decay_per_episode=True)
+    # policy = GreedyPolicy(policy_net=model, eps_decay=500, decay_per_episode=True, num_actions=3)
+    policy = TraderGreedyPolicy(policy_net=model, eps_decay=300, decay_per_episode=True, env=env)
 
     parameters = DQNTrainerParameters()
     parameters.batch_size = 64
-    parameters.target_update = 500
-    parameters.memory_size = 10000
-    parameters.gamma = 0.99
+    parameters.target_update = 100
+    parameters.memory_size = 15000
+    parameters.gamma = 0.999
 
     dqn_trainer = DQNTrainer(model=model,
                              environment=wrapped_env,
@@ -83,7 +85,7 @@ def run(data_file_path: str, cache_dir: str):
 
     # Fill the buffer with a few random transitions.
     env.logger.disabled = True
-    dqn_trainer.initialize_replay_buffer(RandomPolicy(3), 100)
+    dqn_trainer.initialize_replay_buffer(RandomPolicy(3), 10)
     env.logger.disabled = True
 
     print("Start training")
@@ -101,4 +103,4 @@ def run(data_file_path: str, cache_dir: str):
 
 
 if __name__ == "__main__":
-    run("./input/trades_binance_eth-usd-14-05-2021_1min_subset.csv", "./cache/")
+    run("./input/btc-ucd_ohlc_1min_binance_08-08-2021.csv", "./cache/")

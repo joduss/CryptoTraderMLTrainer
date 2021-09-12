@@ -1,0 +1,5 @@
+pass a tensor we modify to the NN class and update it.
+
+- Multi input
+- Mask with that tensor before the softmax.
+- Can remove the close price, but then standardize the data.

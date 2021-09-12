@@ -1,4 +1,7 @@
-from typing import Optional, Tuple
+from __future__ import annotations
+
+from collections import namedtuple
+from typing import Any, List, NamedTuple, Optional
 
 import numpy as np
 from logging import Logger
@@ -7,22 +10,26 @@ from pytorch_based.trader.environments.wallet import Wallet
 from shared.environments.trading_action import TradingAction
 
 
+MarketEnvironmentState = namedtuple("MarketEnvironmentState", ["indicators", "wallet", "valid_actions_mask"])
+MarketStep = NamedTuple("MarketStep", [("next_state", MarketEnvironmentState), ("reward", Any), ("ended", Any)])
+
+
 class MarketEnvLogic:
 
     def __init__(self):
         self.logger: Optional[Logger] = None
         self.wallet: Optional[Wallet] = None
 
-    def next(self, action: TradingAction) -> Tuple[np.array, float, bool]:
+    def next(self, action: TradingAction) -> MarketStep:
         """
         Returns observation, reward, early_termination
         """
         raise NotImplementedError()
 
-    def _state(self) -> np.array:
+    def _state(self) -> np.ndarray:
         raise NotImplementedError()
 
-    def reset(self) -> np.array:
+    def reset(self) -> MarketStep:
         raise NotImplementedError()
 
 
@@ -35,10 +42,10 @@ class MarketEnvLogic:
     def current_date(self):
         raise NotImplementedError()
 
-    def net_worth(self):
+    def net_worth(self) -> float:
         raise NotImplementedError()
 
-    def valid_moves(self) -> [TradingAction]:
+    def valid_moves(self) -> List[TradingAction]:
         raise NotImplementedError()
 
     def episode_progress(self) -> float:

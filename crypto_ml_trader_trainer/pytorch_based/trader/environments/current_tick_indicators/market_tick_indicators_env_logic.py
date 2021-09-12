@@ -1,28 +1,32 @@
 from __future__ import absolute_import, division, print_function
 
-from typing import Tuple
+import logging
 
 import numpy as np
 import pandas as pd
 from numpy import float64
 
 from pytorch_based.trader.environments.current_tick_indicators.market_tick_indicator_data import MarketTickIndicatorData
-from pytorch_based.trader.environments.market_env_logic import MarketEnvLogic
+from pytorch_based.trader.environments.market_env_logic import MarketEnvLogic, MarketEnvironmentState, MarketStep
 from pytorch_based.trader.environments.wallets.single_order_wallet import SingleOrderWallet
 from shared.environments.trading_action import TradingAction
 
 
 class MarketTickIndicatorsEnvLogic(MarketEnvLogic):
+
+    logger: logging.Logger = logging.getLogger(__name__)
     _fee = 0.1 / 100
     _LEGAL_ACTION_HEAD_START = 100
 
-    index_jump = 15  # If each row is data for a minute, then index_jump will produce aggregated data over 15 minutes
+    index_jump = 15  # If each row is data for a minute, then decision_frequency will produce aggregated data over 15 minutes
 
     def __init__(self, data: pd.DataFrame,
                  initial_balance: float = 100,
                  rules_only: bool = False,
-                 cache_dir: str = None):
+                 cache_dir: str = None,
+                 ):
         super().__init__()
+
 
         self.wallet: SingleOrderWallet = SingleOrderWallet(initial_balance)
         self.initial_balance = initial_balance
@@ -44,19 +48,20 @@ class MarketTickIndicatorsEnvLogic(MarketEnvLogic):
         self.legal_actions = self._LEGAL_ACTION_HEAD_START  # we give a head start
         self.allowed_illegal_action_rate = 0.1
 
+
         self.reset()
 
 
     # region Interaction with environment
 
 
-    def next(self, action: TradingAction) -> Tuple[np.array, float, bool]:
+    def next(self, action: TradingAction) -> MarketStep:
 
         self._data_idx += 1
 
         # Special case for the first state
         if self._data_idx == 1:
-            return self._state(), 0, False
+            return MarketStep(next_state=self._state(), reward=0, ended=False)
 
         close = self.data.close_prices[self._data_idx]
         previous_close = self.data.close_prices[self._data_idx - 1]
@@ -69,7 +74,7 @@ class MarketTickIndicatorsEnvLogic(MarketEnvLogic):
         # Allow to loose max 25% from the max worth
         if self.wallet.net_worth / self.wallet.max_worth < 0.75:
             done = True
-            reward = min(-1.0, reward)
+            reward = min(-0.25, reward)
 
         # if self.allowed_illegal_action_rate_min_actions > self.illegal_actions + self.legal_actions:
         if (self.illegal_actions / (self.legal_actions + self.illegal_actions + 1)) > self.allowed_illegal_action_rate:
@@ -77,7 +82,7 @@ class MarketTickIndicatorsEnvLogic(MarketEnvLogic):
             reward = min(-1.0, reward)
 
         self.logger.debug("reward " + str(reward))
-        return self._state(), reward, done
+        return MarketStep(next_state=self._state(), reward=reward, ended=done)
 
 
     def _execute_action(self, action: TradingAction, previous_close: float, close: float) -> float:
@@ -117,7 +122,7 @@ class MarketTickIndicatorsEnvLogic(MarketEnvLogic):
             return 0
 
 
-    def reset(self) -> np.array:
+    def reset(self) -> MarketStep:
         self._data_idx = 0
         self._original_data_idx = 0
         self.wallet = SingleOrderWallet(self.initial_balance)
@@ -138,20 +143,27 @@ class MarketTickIndicatorsEnvLogic(MarketEnvLogic):
             1 if self.wallet.can_sell() else 0,
             self.wallet.initial_coin_price / self.current_price() - 1 if self.wallet.can_sell() else 0
             # self.wallet.balance
-        ], dtype=float64)
+        ], dtype=float64).reshape((1,3))
 
 
-    def _market_state(self) -> np.array:
-        return self.data[self._data_idx]
+    def _market_indicators(self) -> np.array:
+        indicators = self.data[self._data_idx]
+        data_length = indicators.shape[0]
+        indicators = indicators.reshape((1,data_length))
+        return indicators
+        # periods = len(self.data.history_periods)
+        # indicator_count = int(self.data.processed_data.shape[1] / periods)
+        #
+        # return self.data[self._data_idx].reshape((indicator_count, periods))
+
+    def _valid_action_mask(self) -> np.array:
+        return np.array([TradingAction.hot_encode(self.valid_moves())])
 
 
-    def _state(self) -> np.array:
-        wallet_data = self._wallet_state()
-        market_state = self._market_state()
-
-        return np.concatenate((wallet_data, market_state)).reshape(
-            (1, len(wallet_data) + self.indicator_count))
-
+    def _state(self) -> MarketEnvironmentState:
+        return MarketEnvironmentState(indicators=self._market_indicators(),
+                                      wallet=self._wallet_state(),
+                                      valid_actions_mask=self._valid_action_mask())
 
     # endregion
 
@@ -163,7 +175,7 @@ class MarketTickIndicatorsEnvLogic(MarketEnvLogic):
         return self._data_idx < self._max_idx and self.wallet.max_worth * 0.75 < self.wallet.net_worth
 
 
-    def current_price(self):
+    def current_price(self) -> float:
         return self.data.close_prices[self._data_idx]
 
 
@@ -171,15 +183,15 @@ class MarketTickIndicatorsEnvLogic(MarketEnvLogic):
         return self.data.dates[self._data_idx]
 
 
-    def net_worth(self):
+    def net_worth(self) -> float:
         return self.wallet.net_worth
-
 
     def valid_moves(self) -> [TradingAction]:
         if self.wallet.can_sell():
             return [TradingAction.SELL, TradingAction.HOLD]
         elif self.wallet.can_buy():
             return [TradingAction.BUY, TradingAction.HOLD]
+
 
 
     def episode_progress(self) -> float:
