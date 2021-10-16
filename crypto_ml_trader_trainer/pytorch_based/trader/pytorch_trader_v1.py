@@ -8,12 +8,15 @@ from pytorch_based.trader.environments.market_dqn_trainer import MarketDQNTraine
 from pytorch_based.core.pytorch_global_config import Device
 from pytorch_based.trader.environments.current_tick_indicators.market_current_indicators_env import MarketCurrentIndicatorsEnv
 from pytorch_based.trader.environments.market_environment_abstract import MarketEnvironmentAbstract
+from pytorch_based.trader.environments.past_indicators.market_past_indicators_env import MarketPastIndicatorsEnv
+from pytorch_based.trader.environments.past_indicators.market_past_indicators_nn import MarketPastIndicatorsNN
 from pytorch_based.trader.policies.random_policy import RandomPolicy
 
 from pytorch_based.trader.environments.current_tick_indicators.market_current_indicators_nn import MarketIndicatorNN
 from crypto_ml_trader_trainer.utilities.DateUtility import dateparse
 from pytorch_based.trader.environments.environment_tensor_wrapper import MarketEnvironmentTensorWrapper
 from pytorch_based.trader.policies.trader_greedy_policy import TraderGreedyPolicy
+from torchinfo import summary
 
 def run(data_file_path: str, cache_dir: str):
     print("run")
@@ -46,28 +49,33 @@ def run(data_file_path: str, cache_dir: str):
 
     Device.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-    MarketTickIndicatorsEnvLogic.index_jump = 15
-    env: MarketEnvironment = MarketEnvironment(MarketTickIndicatorsEnvLogic(data, cache_dir=cache_dir)).unwrapped
+    # Creation and configuration of the environment
+    # env: MarketEnvironmentAbstract = MarketCurrentIndicatorsEnv(data, cache_dir=cache_dir, index_jump=15).unwrapped
+    env: MarketEnvironmentAbstract = MarketPastIndicatorsEnv(data, cache_dir=cache_dir, index_jump=15).unwrapped
     #check_env(env)
     wrapped_env = MarketEnvironmentTensorWrapper(env)
-
-
-
 
     # environment_train = CryptoMarketIndicatorsEnvironment(data_train, 100)
     # environment_val = MarketIndicatorTfEnvironment(data_val)
 
-    model = MarketIndicatorNN(input_length=wrapped_env.observation_space["indicators"].shape[0],
-                              wallet_input_length=wrapped_env.observation_space["wallet"].shape[0])
+    # Setup the model that will train using the previously created environment.
+    # model = MarketIndicatorNN(input_length=wrapped_env.observation_space["indicators"].shape[0],
+    #                           wallet_input_length=wrapped_env.observation_space["wallet"].shape[0])
+
+    model = MarketPastIndicatorsNN(indicator_count=wrapped_env.observation_space["indicators"].shape[1],
+                                   history_length=wrapped_env.observation_space["indicators"].shape[2],
+                                   wallet_input_length=wrapped_env.observation_space["wallet"].shape[0])
+
+
+
+
+
     optimizer = torch.optim.Adam(model.parameters(), lr=0.0001, weight_decay=0.0001)
-    # policy = TraderPolicy(env, model)
-    # policy = GreedyPolicy(num_actions=3, policy_net=model, eps_decay=500, decay_per_episode=True)
-    # policy = GreedyPolicy(policy_net=model, eps_decay=500, decay_per_episode=True, num_actions=3)
     policy = TraderGreedyPolicy(policy_net=model, eps_decay=300, decay_per_episode=True, env=env)
 
-    parameters = DQNTrainerParameters()
+    parameters = MarketDQNTrainerParameters()
     parameters.batch_size = 64
-    parameters.target_update = 100
+    parameters.target_update = 25
     parameters.memory_size = 15000
     parameters.gamma = 0.999
 
@@ -92,7 +100,6 @@ def run(data_file_path: str, cache_dir: str):
     env.logger.disabled = True
 
     print("Start training")
-
     dqn_trainer.train(30000)
 
     torch.save({
