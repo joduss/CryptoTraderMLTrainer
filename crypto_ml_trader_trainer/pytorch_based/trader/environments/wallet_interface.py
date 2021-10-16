@@ -1,6 +1,6 @@
 
 
-class Wallet:
+class WalletInterface:
 
     def __init__(self):
         self.max_worth = 0

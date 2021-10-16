@@ -10,7 +10,7 @@ import utilities.pandas_extension_scaler
 from utilities.DateUtility import dateparse
 
 
-class MarketTickIndicatorData:
+class MarketCurrentIndicatorsEnvData:
 
     def __init__(self, data_to_process: pd.DataFrame, decision_frequency: int, cache_dir: str, history_periods: List[int] = None):
         """
@@ -44,7 +44,7 @@ class MarketTickIndicatorData:
         self.processed_data_dataframe = self._prepare_data(self.original_data, decision_frequency, self.history_periods, cache_dir)
         self.processed_data = self.processed_data_dataframe.to_numpy()
 
-        self.close_prices = self.original_data.loc[self.processed_data_dataframe.index]["close"]
+        self.close_prices: pd.Series = self.original_data.loc[self.processed_data_dataframe.index]["close"]
         self.dates = self.processed_data_dataframe.index.to_numpy()
 
 
@@ -114,7 +114,7 @@ class MarketTickIndicatorData:
         indices = range(0, len(data), index_jump)
         filtered_data: pd.DataFrame = pd.DataFrame(data.iloc[indices])
 
-        MarketTickIndicatorData.normalize(filtered_data, index_jump)
+        MarketCurrentIndicatorsEnvData.normalize(filtered_data)
 
         # dropping volume and count
         filtered_data = filtered_data.drop(columns="volume")
@@ -131,7 +131,7 @@ class MarketTickIndicatorData:
         return filtered_data
 
     @classmethod
-    def normalize(cls, data: pd.DataFrame, index_jump: int):
+    def normalize(cls, data: pd.DataFrame,):
         """
         Normalize the data in-place.
         """

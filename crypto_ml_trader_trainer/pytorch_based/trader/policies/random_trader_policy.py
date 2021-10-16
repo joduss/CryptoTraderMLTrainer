@@ -4,7 +4,7 @@ import torch
 
 from pytorch_based.core.policy import Policy
 from pytorch_based.core.pytorch_global_config import Device
-from pytorch_based.trader.environments.market_environment import MarketEnvironment
+from pytorch_based.trader.environments.market_environment_abstract import MarketEnvironmentAbstract
 
 
 class RandomTraderPolicy(Policy):
@@ -16,8 +16,8 @@ class RandomTraderPolicy(Policy):
     _N_ACTIONS = 3
 
 
-    def __init__(self, env: MarketEnvironment):
-        self.env: MarketEnvironment = env
+    def __init__(self, env: MarketEnvironmentAbstract):
+        self.env: MarketEnvironmentAbstract = env
 
 
     def decide(self, state):

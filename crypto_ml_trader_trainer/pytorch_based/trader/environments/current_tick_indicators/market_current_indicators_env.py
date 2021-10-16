@@ -6,13 +6,14 @@ import numpy as np
 import pandas as pd
 from numpy import float64
 
-from pytorch_based.trader.environments.current_tick_indicators.market_tick_indicator_data import MarketTickIndicatorData
-from pytorch_based.trader.environments.market_env_logic import MarketEnvLogic, MarketEnvironmentState, MarketStep
+from pytorch_based.trader.environments.current_tick_indicators.market_current_indicators_env_data import MarketCurrentIndicatorsEnvData
+from pytorch_based.trader.environments.market_environment_abstract import MarketEnvironmentAbstract, MarketEnvironmentState, \
+    MarketStep
 from pytorch_based.trader.environments.wallets.single_order_wallet import SingleOrderWallet
 from shared.environments.trading_action import TradingAction
 
 
-class MarketTickIndicatorsEnvLogic(MarketEnvLogic):
+class MarketCurrentIndicatorsEnv(MarketEnvironmentAbstract):
 
     logger: logging.Logger = logging.getLogger(__name__)
     _fee = 0.1 / 100
@@ -24,9 +25,18 @@ class MarketTickIndicatorsEnvLogic(MarketEnvLogic):
                  initial_balance: float = 100,
                  rules_only: bool = False,
                  cache_dir: str = None,
+                 index_jump: int = 15
                  ):
-        super().__init__()
+        """
 
+        @param data:
+        @param initial_balance:
+        @param rules_only:
+        @param cache_dir:
+        @param index_jump:
+            If each row is data for a minute, then decision_frequency
+            will produce aggregated data over 'index_jump' minutes.
+        """
 
         self.wallet: SingleOrderWallet = SingleOrderWallet(initial_balance)
         self.initial_balance = initial_balance
@@ -34,9 +44,9 @@ class MarketTickIndicatorsEnvLogic(MarketEnvLogic):
         self.rules_only = rules_only
 
         # Data and feature engineering (not normalized)
-        self.data: MarketTickIndicatorData = MarketTickIndicatorData(
+        self.data: MarketCurrentIndicatorsEnvData = MarketCurrentIndicatorsEnvData(
             data,
-            self.index_jump,
+            index_jump,
             cache_dir=cache_dir)
 
         self._max_idx = len(self.data)
@@ -48,8 +58,7 @@ class MarketTickIndicatorsEnvLogic(MarketEnvLogic):
         self.legal_actions = self._LEGAL_ACTION_HEAD_START  # we give a head start
         self.allowed_illegal_action_rate = 0.1
 
-
-        self.reset()
+        super().__init__(initial_balance)
 
 
     # region Interaction with environment
@@ -93,7 +102,7 @@ class MarketTickIndicatorsEnvLogic(MarketEnvLogic):
         @param close: current close price
         @return: reward
         """
-        if action not in self.valid_moves():
+        if action not in self.allowed_actions():
             self.illegal_actions += 1
             return -1
         else:
@@ -122,13 +131,12 @@ class MarketTickIndicatorsEnvLogic(MarketEnvLogic):
             return 0
 
 
-    def reset(self) -> MarketStep:
+    def _reset_market(self) -> MarketEnvironmentState:
         self._data_idx = 0
-        self._original_data_idx = 0
         self.wallet = SingleOrderWallet(self.initial_balance)
         self.illegal_actions = 0
         self.legal_actions = self._LEGAL_ACTION_HEAD_START
-        return self.next(action=TradingAction.HOLD)
+        return self.next(action=TradingAction.HOLD).next_state
 
 
     # endregion
@@ -157,7 +165,7 @@ class MarketTickIndicatorsEnvLogic(MarketEnvLogic):
         # return self.data[self._data_idx].reshape((indicator_count, periods))
 
     def _valid_action_mask(self) -> np.array:
-        return np.array([TradingAction.hot_encode(self.valid_moves())])
+        return np.array([TradingAction.hot_encode(self.allowed_actions())])
 
 
     def _state(self) -> MarketEnvironmentState:
@@ -186,7 +194,7 @@ class MarketTickIndicatorsEnvLogic(MarketEnvLogic):
     def net_worth(self) -> float:
         return self.wallet.net_worth
 
-    def valid_moves(self) -> [TradingAction]:
+    def allowed_actions(self) -> [TradingAction]:
         if self.wallet.can_sell():
             return [TradingAction.SELL, TradingAction.HOLD]
         elif self.wallet.can_buy():

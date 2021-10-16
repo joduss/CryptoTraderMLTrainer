@@ -31,7 +31,7 @@ class GreedyPolicy(Policy):
 
         self._actions_taken += 1
 
-        if self.decay_per_episode:
+        if self.decay_per_episode is True:
             eps_threshold = self.eps_end + (self.eps_start - self.eps_end) * math.exp(
                 -1. * self._episodes_done / self.eps_decay)
         else:

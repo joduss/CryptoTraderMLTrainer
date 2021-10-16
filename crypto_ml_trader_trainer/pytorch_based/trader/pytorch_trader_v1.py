@@ -4,17 +4,16 @@ import logging
 import pandas as pd
 import torch.optim
 
-from pytorch_based.core.dqn_trainer import DQNTrainer, DQNTrainerParameters
+from pytorch_based.trader.environments.market_dqn_trainer import MarketDQNTrainer, MarketDQNTrainerParameters
 from pytorch_based.core.pytorch_global_config import Device
-from pytorch_based.trader.environments.current_tick_indicators.market_tick_indicators_env_logic import MarketTickIndicatorsEnvLogic
-from pytorch_based.trader.environments.market_environment import MarketEnvironment
-from pytorch_based.trader.greedy_policy import GreedyPolicy
+from pytorch_based.trader.environments.current_tick_indicators.market_current_indicators_env import MarketCurrentIndicatorsEnv
+from pytorch_based.trader.environments.market_environment_abstract import MarketEnvironmentAbstract
 from pytorch_based.trader.policies.random_policy import RandomPolicy
 
-from pytorch_based.trader.environments.current_tick_indicators.market_indicator_nn import MarketIndicatorNN
+from pytorch_based.trader.environments.current_tick_indicators.market_current_indicators_nn import MarketIndicatorNN
 from crypto_ml_trader_trainer.utilities.DateUtility import dateparse
 from pytorch_based.trader.environments.environment_tensor_wrapper import MarketEnvironmentTensorWrapper
-
+from pytorch_based.trader.policies.trader_greedy_policy import TraderGreedyPolicy
 
 def run(data_file_path: str, cache_dir: str):
     print("run")
@@ -72,11 +71,15 @@ def run(data_file_path: str, cache_dir: str):
     parameters.memory_size = 15000
     parameters.gamma = 0.999
 
-    dqn_trainer = DQNTrainer(model=model,
-                             environment=wrapped_env,
-                             parameters=DQNTrainerParameters(),
-                             optimizer=optimizer,
-                             policy=policy)
+    state = wrapped_env.reset()
+    summary(model, input_size=[state.indicators.shape, state.wallet.shape, state.valid_actions_mask.shape],
+            dtypes=[torch.double, torch.double, torch.double])
+
+    dqn_trainer = MarketDQNTrainer(model=model,
+                                   environment=wrapped_env,
+                                   parameters=MarketDQNTrainerParameters(),
+                                   optimizer=optimizer,
+                                   policy=policy)
 
 
     # Logging levels

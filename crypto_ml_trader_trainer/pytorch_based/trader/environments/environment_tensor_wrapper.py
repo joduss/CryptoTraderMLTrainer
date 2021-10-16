@@ -2,13 +2,13 @@ import gym
 import torch
 
 from pytorch_based.core.pytorch_global_config import Device
-from pytorch_based.trader.environments.market_env_logic import MarketEnvironmentState, MarketStep
-from pytorch_based.trader.environments.market_environment import MarketEnvironment
+from pytorch_based.trader.environments.market_environment_abstract import MarketEnvironmentAbstract, MarketEnvironmentState, \
+    MarketStep
 
 
 class MarketEnvironmentTensorWrapper(gym.Env):
 
-    def __init__(self, env: MarketEnvironment):
+    def __init__(self, env: MarketEnvironmentAbstract):
         self.wrapped_env = env
         self.action_space = env.action_space
         self.observation_space = env.observation_space

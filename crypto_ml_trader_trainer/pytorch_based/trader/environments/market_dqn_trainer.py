@@ -10,21 +10,21 @@ import torch.nn.functional as F
 from torch import nn
 from torch.optim import Optimizer
 
-from ..core.Transition import Transition
-from ..core.policy import Policy
-from ..core.pytorch_global_config import Device
-from ..core.replay_memory import ReplayMemory
+from pytorch_based.core.Transition import Transition
+from pytorch_based.core.policy import Policy
+from pytorch_based.core.pytorch_global_config import Device
+from pytorch_based.core.replay_memory import ReplayMemory
 from torch.utils.tensorboard import SummaryWriter
 
 @dataclass
-class DQNTrainerParameters:
+class MarketDQNTrainerParameters:
     batch_size: int = 32
     gamma: float = 0.999
     memory_size: int = 10000
     target_update: float = 10
 
 
-class DQNTrainer:
+class MarketDQNTrainer:
 
     render_period: int = 1000
     logger: Logger = logging.getLogger(__name__)
@@ -41,7 +41,7 @@ class DQNTrainer:
                  model: nn.Module,
                  environment: gym.Env,
                  optimizer: Optimizer,
-                 parameters: DQNTrainerParameters,
+                 parameters: MarketDQNTrainerParameters,
                  policy: Policy):
         self.memory = ReplayMemory(parameters.memory_size)
         self.policy_net: nn.Module = model
@@ -52,6 +52,19 @@ class DQNTrainer:
         self.policy = policy
         self.epoch = 0
         self.writer = SummaryWriter('runs/trader')
+
+        self.model_save_path = None
+        self.model_save_frequency = None
+
+
+    def enable_periodic_model_saving(self, path: str, frequency: int):
+        """
+        Enable periodic saving the target_net model.
+        @param path: where to save the model.
+        @param frequency: In terms of copying values to the target_net.
+        """
+        self.model_save_path = path
+        self.model_save_frequency = frequency
 
     def initialize_replay_buffer(self, random_policy: Policy, num_episodes: int):
 
@@ -112,7 +125,7 @@ class DQNTrainer:
                 # Move to the next state
                 state = next_state
 
-                # Perform one step of the optimization (on the policy network)
+                # Perform one step of the optimization (on the policy market_net)
                 self.optimize_model(epoch=t, num_episode=self.epoch)
                 if done:
                     self.environment.render("none")
@@ -121,9 +134,10 @@ class DQNTrainer:
                     # plot_durations()
                     break
 
-            # Update the target network, copying all weights and biases in DQN
+            # Update the target market_net, copying all weights and biases in DQN
             if i_episode % self.parameters.target_update == 0:
                 self.target_net.load_state_dict(self.policy_net.state_dict())
+                self.save()
 
             self.environment.render()
 
@@ -189,6 +203,16 @@ class DQNTrainer:
             param.grad.data.clamp_(-1, 1)
             #print(param.grad.data)
 
-
-
         self.optimizer.step()
+
+
+
+    def save(self):
+        if self.model_save_path is None:
+            return
+
+        torch.save({
+            'epoch': self.epoch,
+            'model_state_dict': self.target_net.state_dict(),
+            'optimizer_state_dict': self.optimizer.state_dict()
+        }, self.model_save_path)

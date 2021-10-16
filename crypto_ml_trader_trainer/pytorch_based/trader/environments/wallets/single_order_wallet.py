@@ -1,9 +1,9 @@
 from typing import Optional
 
-from pytorch_based.trader.environments.wallet import Wallet
+from pytorch_based.trader.environments.wallet_interface import WalletInterface
 
 
-class SingleOrderWallet(Wallet):
+class SingleOrderWallet(WalletInterface):
 
     def __init__(self, balance: float):
         super().__init__()

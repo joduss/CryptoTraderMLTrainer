@@ -5,9 +5,9 @@ import torch
 from torch import nn
 
 from shared.environments.trading_action import TradingAction
-from .environments.market_environment import MarketEnvironment
-from ..core.policy import Policy
-from ..core.pytorch_global_config import Device
+from pytorch_based.trader.environments.market_environment_abstract import MarketEnvironmentAbstract
+from pytorch_based.core.policy import Policy
+from pytorch_based.core.pytorch_global_config import Device
 
 
 class TraderPolicy(Policy):
@@ -19,12 +19,12 @@ class TraderPolicy(Policy):
     _N_ACTIONS = 3
 
 
-    def __init__(self, env: MarketEnvironment, policy_net: nn.Module, eps_start: float = 0.95, eps_end: float = 0.05, eps_decay: float = 200):
+    def __init__(self, env: MarketEnvironmentAbstract, policy_net: nn.Module, eps_start: float = 0.95, eps_end: float = 0.05, eps_decay: float = 200):
         self.eps_start = eps_start
         self.eps_end = eps_end
         self.eps_decay = eps_decay
         self.policy_net = policy_net
-        self.env: MarketEnvironment = env
+        self.env: MarketEnvironmentAbstract = env
 
     def next_episode(self):
         self._episodes_done += 1
