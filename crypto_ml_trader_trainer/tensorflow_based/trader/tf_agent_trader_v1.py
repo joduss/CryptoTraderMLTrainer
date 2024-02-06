@@ -225,7 +225,7 @@ for _ in range(num_iterations):
   # Collect a few steps using collect_policy and save to the replay buffer.
   collect_data(train_env, agent.collect_policy, replay_buffer, collect_steps_per_iteration)
 
-  # Sample a batch of data from the buffer and update the agent's network.
+  # Sample a batch of data from the buffer and update the agent's market_net.
   experience, unused_info = next(iterator)
   train_loss = agent.train(experience).loss
 

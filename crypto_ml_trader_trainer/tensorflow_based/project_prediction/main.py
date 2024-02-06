@@ -186,7 +186,7 @@ tf.keras.utils.plot_model(model, show_shapes=True, show_layer_names=True)
 #%% Training on Normalized data
 
 # train_dataset_norm = tf.data.Dataset.from_tensor_slices((ml_inputs_train_norm, ml_outputs_norm_train)).shuffle(buffer_size=50).batch(64)
-# history = model.fit(train_dataset_norm, epochs=3)
+# history_periods = model.fit(train_dataset_norm, epochs=3)
 
 #%% Training on non-normalized data
 

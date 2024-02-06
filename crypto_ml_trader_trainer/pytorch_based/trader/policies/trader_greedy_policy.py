@@ -33,8 +33,12 @@ class TraderGreedyPolicy(Policy):
         self.decay_per_episode = decay_per_episode
         self.env = env
 
+        # in case of a buy or sell, we might force all the next decision up to the next sell/buy to rely on the network.
+        self.random_paused = False
+
     def next_episode(self):
         self._episodes_done += 1
+        self.random_paused = False
 
     def decide(self, *state) -> (torch.Tensor, bool):
 
@@ -50,8 +54,21 @@ class TraderGreedyPolicy(Policy):
 
         sample = random.random()
 
-        if sample > eps_threshold:
-            return self.policy_net(*state).max(1)[1].view(1,1)
+        if sample > eps_threshold or self.random_paused:
+            action = self.policy_net(*state).max(1)[1].view(1,1)
         else:
             action = random.sample(self.env.allowed_actions(), 1)[0]
-            return torch.tensor([[action.value]], dtype=torch.long).to(Device.device)
+            action = torch.tensor([[action.value]], dtype=torch.long).to(Device.device)
+
+        trading_action = TradingAction(action.item())
+        if trading_action is TradingAction.BUY:
+            sample = random.random()
+            self.random_paused = True if sample > eps_threshold else False
+        if trading_action is TradingAction.SELL:
+            sample = random.random()
+            self.random_paused = True if sample > eps_threshold else False
+
+        return action
+
+
+

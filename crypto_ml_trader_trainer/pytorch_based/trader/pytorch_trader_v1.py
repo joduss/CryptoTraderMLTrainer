@@ -71,7 +71,7 @@ def run(data_file_path: str, cache_dir: str):
 
 
     optimizer = torch.optim.Adam(model.parameters(), lr=0.0001, weight_decay=0.0001)
-    policy = TraderGreedyPolicy(policy_net=model, eps_decay=300, decay_per_episode=True, env=env)
+    policy = TraderGreedyPolicy(policy_net=model, eps_decay=200, decay_per_episode=True, env=env, eps_end=0.02)
 
     parameters = MarketDQNTrainerParameters()
     parameters.batch_size = 64

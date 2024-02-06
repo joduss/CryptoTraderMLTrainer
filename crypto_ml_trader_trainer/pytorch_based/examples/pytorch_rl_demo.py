@@ -256,13 +256,13 @@ for i_episode in range(num_episodes):
         # Move to the next state
         state = next_state
 
-        # Perform one step of the optimization (on the policy network)
+        # Perform one step of the optimization (on the policy market_net)
         optimize_model()
         if done:
             episode_durations.append(t + 1)
             plot_durations()
             break
-    # Update the target network, copying all weights and biases in DQN
+    # Update the target market_net, copying all weights and biases in DQN
     if i_episode % TARGET_UPDATE == 0:
         target_net.load_state_dict(policy_net.state_dict())
 

@@ -76,6 +76,11 @@ class MarketPastIndicatorsEnv(MarketEnvironmentAbstract):
 
         self._data_idx += 1
 
+        # Handle last.
+        if self._data_idx >= len(self.data.processed_data):
+            MarketStep(next_state=se, reward=reward, ended=done)
+            return
+
         # Special case for the first state
         if self._data_idx == 1:
             return MarketStep(next_state=self._state(), reward=0, ended=False)

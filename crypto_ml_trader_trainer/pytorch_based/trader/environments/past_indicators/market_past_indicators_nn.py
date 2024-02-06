@@ -19,12 +19,12 @@ class MarketPastIndicatorsNN(nn.Module):
 
         self.market_net = nn.Sequential(
             nn.BatchNorm1d(num_features=indicator_count),
-            nn.Conv1d(in_channels=indicator_count, out_channels=32, kernel_size=kernel_size, stride=stride),
+            nn.Conv1d(in_channels=indicator_count, out_channels=16, kernel_size=kernel_size, stride=stride),
             nn.ReLU(),
-            nn.Conv1d(in_channels=32, out_channels=64, kernel_size=kernel_size, stride=stride),
+            nn.Conv1d(in_channels=16, out_channels=32, kernel_size=kernel_size, stride=stride),
             nn.ReLU(),
             nn.Flatten(),
-            nn.Linear(conv2_size * 64, 256),
+            nn.Linear(conv2_size * 32, 256),
             nn.ReLU(),
             nn.Linear(256, 64),
         ).double().to(device=Device.device)
